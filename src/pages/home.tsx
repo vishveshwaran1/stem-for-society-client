@@ -1,49 +1,53 @@
 import FAQ from "../components1/FAQSection";
 import Footer from "../components1/Footer";
 import HomeCarousel from "../components1/Hero";
-import OurFeatures from "../components1/ProgramStructure";
 import Partners from "../components1/PartnersSection";
 import ProgramsOffered from "../components1/ProgramStructure";
 import ReviewCards from "../components1/TestimonialsSection";
 import SectorsWeFocus from "../components1/SectorsSection";
 import WhyChooseUs from "../components1/WhyChooseSection";
+import Header from "../components1/Header";
 
 function Home() {
   return (
-    <div>
-      {/* Banner Section */}
-      <HomeCarousel />
+    <div className="min-h-screen w-full">
 
-      <div className="px-4 sm:px-6 md:px-8 lg:px-12 mt-6">
-        <SectorsWeFocus />
+      {/* 🌐 Grid Background Only for Header + Hero */}
+      <div className="relative overflow-hidden">
+      <div 
+  className="absolute inset-0 opacity-50 pointer-events-none z-0"
+  style={{
+    backgroundImage: `
+      linear-gradient(rgba(107,114,128,0.5) 2px, transparent 2px),
+      linear-gradient(90deg, rgba(107,114,128,0.5) 2px, transparent 2px)
+    `,
+    backgroundSize: '100px 100px',
+    WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 35%, transparent 100%)',
+    maskImage: 'linear-gradient(to bottom, black 0%, transparent 35%, transparent 100%)',
+    WebkitMaskRepeat: 'no-repeat',
+    maskRepeat: 'no-repeat',
+    WebkitMaskSize: '100% 100%',
+    maskSize: '100% 100%',
+  }}
+/>
+
+
+
+
+
+        <div className="relative z-10">
+          <Header />
+          <HomeCarousel />
+        </div>
       </div>
 
-      <div className="px-4 sm:px-6 md:px-8 lg:px-12 mt-6">
-        <ProgramsOffered />
-      </div>
-
-      <div className="px-4 sm:px-6 md:px-8 lg:px-12 mt-6">
-        <OurFeatures />
-      </div>
-
-      {/* Partners Section */}
-      <div className="px-4 sm:px-6 md:px-8 lg:px-12 mt-6">
-        <Partners />
-      </div>
-
-      <div className="px-4 sm:px-6 md:px-8 lg:px-12 mt-6">
-        <WhyChooseUs />
-      </div>
-
-      <div className="px-4 sm:px-6 md:px-8 lg:px-12 mt-6">
-        <ReviewCards />
-      </div>
-
-      <div className="px-4 sm:px-6 md:px-8 lg:px-12 mt-6">
-        <h2 className="text-2xl font-semibold text-center">FAQs</h2>
-        <FAQ />
-      </div>
-
+      {/* Other Sections */}
+      <SectorsWeFocus />
+      <WhyChooseUs />
+      <Partners/>
+      <ProgramsOffered/>
+      <ReviewCards/>
+      <FAQ />
       <Footer />
     </div>
   );
