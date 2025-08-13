@@ -12,6 +12,7 @@ import { api } from "../lib/api";
 import { courseCategories } from "../lib/data";
 import { GenericError, GenericResponse } from "../lib/types";
 import { formatDate } from "../lib/utils";
+import Header from "@/components1/Header";
 
 export type StudentTraining = {
   id: string;
@@ -151,7 +152,9 @@ const Training: React.FC = () => {
   }
 
   return (
+    
     <div className="w-full mt-4 px-6">
+      <Header />
       <div className="max-w-7xl mx-auto flex flex-col justify-center items-center">
         <div className="mt-5">
           <h1 className="font-semibold text-[20px] sm:text-2xl md:text-2xl lg:text-3xl relative inline-block">
