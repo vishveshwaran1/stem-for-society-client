@@ -187,11 +187,18 @@ const Header = () => {
     )}
   </div>
 ) : (
-  <Link to="/login">
-    <Button className="bg-[#0389FF] hover:bg-[#0389FF]/90 text-white rounded px-6 py-3 font-medium shadow-sm transition-all duration-300">
-      LOGIN
-    </Button>
-  </Link>
+ <div className="flex items-center space-x-3">
+                <Link to="/partner-role">
+                  <Button variant="outline" className="border-2 border-[#0389FF] text-[#0389FF] hover:bg-[#0389FF] hover:text-white bg-white/70 backdrop-blur-sm rounded px-6 py-3 font-medium shadow-sm transition-all duration-300">
+                    Partner with us
+                  </Button>
+                </Link>
+                <Link to="/login">
+                  <Button className="bg-[#0389FF] hover:bg-[#0389FF]/90 text-white rounded px-6 py-3 font-medium shadow-sm transition-all duration-300">
+                    LOGIN
+                  </Button>
+                </Link>
+              </div>
 )}
 
           
