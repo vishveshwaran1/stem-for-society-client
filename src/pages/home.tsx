@@ -1,5 +1,5 @@
-import FAQ from "../components/FAQ";
-import Footer from "../components/Footer";
+import FAQ from "../components1/FAQSection";
+import Footer from "../components1/Footer";
 import HomeCarousel from "../components/HomeCarousel";
 import OurFeatures from "../components/OurFeatures";
 import Partners from "../components/Partners";
