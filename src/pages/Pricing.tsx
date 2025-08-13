@@ -126,12 +126,6 @@ export default function PricingPage() {
 
       // @ts-expect-error dhe chi pae
       const rzp: RazorpayInstance = new Razorpay(options);
-
-<<<<<<< HEAD
-
-=======
-   
->>>>>>> c78fc9f7756d53b39037ec16c1d548cca8516a92
       rzp.on("payment.failed", (res) => {
         console.log("Failure:", res);
         toast.error("Payment failed! Reason:\n" + res.error.description, {
