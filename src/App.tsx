@@ -54,7 +54,9 @@ import JoinCommunity from "./pages/JoinCommunity";
 import CareerCounselling from "./pages/CareerCounselling";
 import AdminCareerCounselling from "./pages/admin/AdminCareerCounselling";
 import ExploreProgramDashboard from "./pages/ExploreProgramDashboard";
-
+import PsychologyCounselling from "./pages/PsychologyCounselling";
+import InstitutionPricing from "./pages/InstitutionPricing";
+import CampusAmbassadorDash from "./pages/CampusAmbassadorDash";
 function AppLayout() {
   return (
     <>
@@ -93,13 +95,18 @@ function App() {
                 <Route path="/refund-policy" element={<RefundPolicy />} />
                 <Route path="/join-community" element={<JoinCommunity />} />
                 <Route
-                  path="/psychology-training"
-                  element={<PsychologyTraining />}
+                  path="/psychology-counselling"
+                  element={<PsychologyCounselling />}
                 />
                 <Route
                   path="/career-counselling"
                   element={<CareerCounselling />}
                 />
+                <Route
+                  path="/institution-pricing"
+                  element={<InstitutionPricing />}
+                />
+                <Route path="/campus-ambassador" element={<CampusAmbassadorDash />} />
                 <Route path="/ca-program" element={<CampusAmbassador />} />
                 <Route path="/signup" element={<SignUp />} />
                 <Route path="*" element={<NotFound />} />
