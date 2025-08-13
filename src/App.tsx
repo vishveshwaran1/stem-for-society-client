@@ -61,6 +61,8 @@ import CampusAmbassadorBooking from "./pages/CampusAmbassadorBooking";
 import PartnerRole from "./pages/PartnerRole";
 import CampusAmbassadorSignup from "./pages/CampusAmbassadorSignup";
 import InstitutionLogin from "./pages/InstitutionLogin";
+import Courses from "./pages/Courses";
+import CourseDetail from "./pages/CourseDetail";
 function AppLayout() {
   return (
     <>
@@ -101,6 +103,8 @@ function App() {
                 <Route path="/partner-role" element={<PartnerRole />} />
                 <Route path="/campus-ambassador-signup" element={<CampusAmbassadorSignup />} />
                 <Route path="/partner-institution-signup" element={<InstitutionLogin />} />
+                <Route path="/courses" element={<Courses />} />
+                <Route path="/course-detail/:id" element={<CourseDetail />} />
                 <Route
                   path="/psychology-counselling"
                   element={<PsychologyCounselling />}
