@@ -57,6 +57,7 @@ import ExploreProgramDashboard from "./pages/ExploreProgramDashboard";
 import PsychologyCounselling from "./pages/PsychologyCounselling";
 import InstitutionPricing from "./pages/InstitutionPricing";
 import CampusAmbassadorDash from "./pages/CampusAmbassadorDash";
+import CampusAmbassadorBooking from "./pages/CampusAmbassadorBooking";
 function AppLayout() {
   return (
     <>
@@ -100,12 +101,13 @@ function App() {
                 />
                 <Route
                   path="/career-counselling"
-                  element={<CareerCounselling />}
+                  element={<CareerCounselling />} 
                 />
                 <Route
                   path="/institution-pricing"
                   element={<InstitutionPricing />}
                 />
+                <Route path="/campus-ambassador-booking" element={<CampusAmbassadorBooking/>} />
                 <Route path="/campus-ambassador" element={<CampusAmbassadorDash />} />
                 <Route path="/ca-program" element={<CampusAmbassador />} />
                 <Route path="/signup" element={<SignUp />} />
