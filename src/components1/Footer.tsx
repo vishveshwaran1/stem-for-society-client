@@ -36,7 +36,7 @@ const Footer = () => {
     <div>
       <h4 className="font-semibold mb-3 text-white">PROGRAMS</h4>
       <ul className="space-y-2 text-blue-100">
-        <li><a href="#" className="hover:text-white transition-colors">Explore Courses</a></li>
+        <li><a href="/training" className="hover:text-white transition-colors">Explore Courses</a></li>
         <li><a href="#" className="hover:text-white transition-colors">Psychology counselling</a></li>
         <li><a href="#" className="hover:text-white transition-colors">Career counselling</a></li>
       </ul>
@@ -57,7 +57,7 @@ const Footer = () => {
       <ul className="space-y-2 text-blue-100">
         <li><a href="#" className="hover:text-white transition-colors">Join Community</a></li>
         <li><a href="#" className="hover:text-white transition-colors">Scientific Communication Blog</a></li>
-        <li><a href="#" className="hover:text-white transition-colors">Our Youtube Channel</a></li>
+        <li><a href="https://www.youtube.com/@stemforsociety" className="hover:text-white transition-colors">Our Youtube Channel</a></li>
       </ul>
     </div>
 
@@ -65,8 +65,8 @@ const Footer = () => {
     <div>
       <h4 className="font-semibold mb-3 text-white">QUICK LINKS</h4>
       <ul className="space-y-2 text-blue-100">
-        <li><a href="#" className="hover:text-white transition-colors">Register</a></li>
-        <li><a href="#" className="hover:text-white transition-colors">Login</a></li>
+        <li><a href="/signup" className="hover:text-white transition-colors">Register</a></li>
+        <li><a href="/login" className="hover:text-white transition-colors">Login</a></li>
       </ul>
     </div>
   </div>
@@ -109,16 +109,16 @@ const Footer = () => {
 
   {/* Social Icons in center */}
   <div className="flex justify-center space-x-4">
-    <a href="#" className="w-10 h-10 bg-white rounded-full flex items-center justify-center hover:bg-blue-50 transition-all duration-300 hover:scale-110">
+    <a href="https://twitter.com/EmpoweringSci" className="w-10 h-10 bg-white rounded-full flex items-center justify-center hover:bg-blue-50 transition-all duration-300 hover:scale-110">
       <Twitter className="h-5 w-5 text-blue-600" />
     </a>
-    <a href="#" className="w-10 h-10 bg-white rounded-full flex items-center justify-center hover:bg-blue-50 transition-all duration-300 hover:scale-110">
+    <a href="https://www.instagram.com/esf_life_science_jobs/" className="w-10 h-10 bg-white rounded-full flex items-center justify-center hover:bg-blue-50 transition-all duration-300 hover:scale-110">
       <Instagram className="h-5 w-5 text-blue-600" />
     </a>
     <a href="#" className="w-10 h-10 bg-white rounded-full flex items-center justify-center hover:bg-blue-50 transition-all duration-300 hover:scale-110">
       <Linkedin className="h-5 w-5 text-blue-600" />
     </a>
-    <a href="#" className="w-10 h-10 bg-white rounded-full flex items-center justify-center hover:bg-blue-50 transition-all duration-300 hover:scale-110">
+    <a href="https://www.youtube.com/@stemforsociety" className="w-10 h-10 bg-white rounded-full flex items-center justify-center hover:bg-blue-50 transition-all duration-300 hover:scale-110">
       <Youtube className="h-5 w-5 text-blue-600" />
     </a>
   </div>
