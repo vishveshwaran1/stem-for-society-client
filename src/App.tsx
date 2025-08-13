@@ -6,7 +6,7 @@ import { Outlet, Route, Routes } from "react-router-dom";
 import { Slide, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import ErrorBoundary from "./components/ErrorBoundary";
-import Header from "./components/Header";
+import Header from "./components1/Header";
 import AdminApplicationsLayout from "./layouts/AdminApplicationsLayout";
 import AdminLayout from "./layouts/AdminLayout";
 import PartnerLayout from "./layouts/PartnerLayout";

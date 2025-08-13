@@ -1,12 +1,12 @@
 import FAQ from "../components1/FAQSection";
 import Footer from "../components1/Footer";
-import HomeCarousel from "../components/HomeCarousel";
-import OurFeatures from "../components/OurFeatures";
-import Partners from "../components/Partners";
-import ProgramsOffered from "../components/ProgramsOffered";
-import ReviewCards from "../components/Reviews";
-import SectorsWeFocus from "../components/SectorsWeFocus";
-import WhyChooseUs from "../components/WhyChooseUs";
+import HomeCarousel from "../components1/Hero";
+import OurFeatures from "../components1/ProgramStructure";
+import Partners from "../components1/PartnersSection";
+import ProgramsOffered from "../components1/ProgramStructure";
+import ReviewCards from "../components1/TestimonialsSection";
+import SectorsWeFocus from "../components1/SectorsSection";
+import WhyChooseUs from "../components1/WhyChooseSection";
 
 function Home() {
   return (
