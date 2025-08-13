@@ -60,6 +60,7 @@ import CampusAmbassadorDash from "./pages/CampusAmbassadorDash";
 import CampusAmbassadorBooking from "./pages/CampusAmbassadorBooking";
 import PartnerRole from "./pages/PartnerRole";
 import CampusAmbassadorSignup from "./pages/CampusAmbassadorSignup";
+import InstitutionLogin from "./pages/InstitutionLogin";
 function AppLayout() {
   return (
     <>
@@ -99,6 +100,7 @@ function App() {
                 <Route path="/join-community" element={<JoinCommunity />} />
                 <Route path="/partner-role" element={<PartnerRole />} />
                 <Route path="/campus-ambassador-signup" element={<CampusAmbassadorSignup />} />
+                <Route path="/partner-institution-signup" element={<InstitutionLogin />} />
                 <Route
                   path="/psychology-counselling"
                   element={<PsychologyCounselling />}
