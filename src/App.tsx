@@ -6,7 +6,6 @@ import { Outlet, Route, Routes } from "react-router-dom";
 import { Slide, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import ErrorBoundary from "./components/ErrorBoundary";
-import Header from "./components/Header";
 import AdminApplicationsLayout from "./layouts/AdminApplicationsLayout";
 import AdminLayout from "./layouts/AdminLayout";
 import PartnerLayout from "./layouts/PartnerLayout";
@@ -59,7 +58,6 @@ function AppLayout() {
   return (
     <>
       <div className="min-h-screen flex flex-col">
-        <Header />
         <Outlet />
       </div>
     </>
