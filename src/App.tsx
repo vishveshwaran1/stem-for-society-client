@@ -53,6 +53,7 @@ import TrainingSpotlight from "./pages/TrainingSpotlight";
 import JoinCommunity from "./pages/JoinCommunity";
 import CareerCounselling from "./pages/CareerCounselling";
 import AdminCareerCounselling from "./pages/admin/AdminCareerCounselling";
+import ExploreProgramDashboard from "./pages/ExploreProgramDashboard";
 
 function AppLayout() {
   return (
@@ -80,6 +81,7 @@ function App() {
             <Routes>
               <Route path="/" element={<AppLayout />}>
                 <Route index element={<Home />} />
+                <Route path="/explore-program-dashboard" element={<ExploreProgramDashboard />} />
                 <Route path="/training" element={<Training />} />
                 <Route path="/training/:id" element={<TrainingSpotlight />} />
                 <Route path="/blogs" element={<BlogListing />} />
