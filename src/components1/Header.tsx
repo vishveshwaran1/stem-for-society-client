@@ -1,5 +1,5 @@
-
 import { useState } from "react";
+import { Avatar } from "@mantine/core";
 import { Button } from "@/components1/ui/button";
 import { 
   Menubar, 
@@ -8,12 +8,20 @@ import {
   MenubarMenu, 
   MenubarTrigger 
 } from "@/components1/ui/menubar";
-import { ChevronDown, Menu, X } from "lucide-react";
+import { ChevronDown, CircleUserIcon, Menu , X } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { useUser } from "@/lib/hooks";
+import { parseAsBoolean, useQueryState } from "nuqs";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const navigate = useNavigate();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const { user, signOut } = useUser();
+   const [filterByMe, setFilterByMe] = useQueryState<boolean>(
+    "me",
+    parseAsBoolean,
+  );
+
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -21,8 +29,7 @@ const Header = () => {
 
   return (
     <header 
-      className="relative shadow-sm"
-    >
+      className="relative shadow-sm">
  
       
       <div className="container mx-auto px-4 max-w-7xl relative z-10">
@@ -150,18 +157,44 @@ const Header = () => {
               </MenubarMenu>
             </Menubar>
             
-            <div className="flex items-center space-x-3">
-              <Link to="/partner-role">
-                <Button variant="outline" className="border-2 border-[#0389FF] text-[#0389FF] hover:bg-[#0389FF] hover:text-white bg-white/70 backdrop-blur-sm rounded px-6 py-3 font-medium shadow-sm transition-all duration-300">
-                  Partner with us
-                </Button>
-              </Link>
-              <Link to="/login">
-                <Button className="bg-[#0389FF] hover:bg-[#0389FF]/90 text-white rounded px-6 py-3 font-medium shadow-sm transition-all duration-300">
-                  LOGIN
-                </Button>
-              </Link>
-            </div>
+            {user ? (
+  <div className="relative">
+    <button
+      onClick={() => setDropdownOpen(!dropdownOpen)}
+      className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-full hover:bg-gray-200"
+    >
+      <div className="h-9 w-9 flex items-center justify-center rounded-full bg-gray-300 text-gray-700">
+        <CircleUserIcon className="h-5 w-5" />
+      </div>
+      <span className="font-medium">{user.user.firstName}</span>
+    </button>
+
+    {dropdownOpen && (
+      <div className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg border">
+        <Link
+          to="/"
+          className="block px-4 py-2 hover:bg-gray-100"
+        >
+          Home
+        </Link>
+        <button
+          onClick={signOut}
+          className="w-full text-left px-4 py-2 text-red-500 hover:bg-gray-100"
+        >
+          Logout
+        </button>
+      </div>
+    )}
+  </div>
+) : (
+  <Link to="/login">
+    <Button className="bg-[#0389FF] hover:bg-[#0389FF]/90 text-white rounded px-6 py-3 font-medium shadow-sm transition-all duration-300">
+      LOGIN
+    </Button>
+  </Link>
+)}
+
+          
           </div>
 
           {/* Mobile Menu Button */}
