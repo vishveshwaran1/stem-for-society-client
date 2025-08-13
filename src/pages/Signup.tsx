@@ -1,17 +1,12 @@
-import {
-  Button,
-  Checkbox,
-  PasswordInput,
-  Text,
-  TextInput,
-  Title,
-} from "@mantine/core";
+import { useState } from "react";
+import { Button } from "@/components1/ui/button";
+import { Input } from "@/components1/ui/input";
+import { Label } from "@/components1/ui/label";
+import { Checkbox } from "@/components1/ui/checkbox";
+import { Link, useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { AxiosError } from "axios";
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import bg from "../assets/bg.png";
 import { api } from "../lib/api";
 import { GenericError, GenericResponse } from "../lib/types";
 
@@ -24,6 +19,7 @@ type SignUpForm = {
   accept: boolean;
 };
 
+// backend API hook
 function useSignUp() {
   const navigate = useNavigate();
   return useMutation<
@@ -60,27 +56,38 @@ function useSignUp() {
   });
 }
 
-function SignUp() {
+const Signup = () => {
   const [formData, setFormData] = useState<SignUpForm>({
+    firstName: "",
     email: "",
+    mobile: "",
     password: "",
     confirmPassword: "",
-    mobile: "",
-    firstName: "",
     accept: false,
   });
 
   const signUpMutation = useSignUp();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
   };
 
-  const handleSubmit = () => {
+  const handleCheckboxChange = (checked: boolean) => {
+    setFormData({
+      ...formData,
+      accept: checked,
+    });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
     if (
       Object.keys(formData).every(
-        (field) => formData[field as keyof SignUpForm],
+        (field) => formData[field as keyof SignUpForm]
       )
     ) {
       if (!formData.accept)
@@ -92,102 +99,145 @@ function SignUp() {
   };
 
   return (
-    <div
-      className={`flex w-full justify-center items-center relative flex-1 h-full`}
-    >
-      <div className="flex flex-col items-center bg-white rounded-xl border justify-center gap-5 lg:mx-0 w-full mx-3 lg:w-[35%] p-5">
-        <Title order={1}>Get Started Now!</Title>
-        <Text size="lg">Enter your details to proceed further</Text>
-        {/* </div> */}
-        <TextInput
-          label="Name"
-          placeholder="Enter your email"
-          size="md"
-          className="w-full"
-          name={"firstName"}
-          value={formData.firstName}
-          onChange={handleChange}
-        />
-        <TextInput
-          label="Email Address"
-          placeholder="Enter your name"
-          size="md"
-          className="w-full"
-          name={"email"}
-          value={formData.email}
-          onChange={handleChange}
-        />
-        <TextInput
-          label="Phone No."
-          placeholder="Enter your phone."
-          size="md"
-          className="w-full"
-          name={"mobile"}
-          value={formData.mobile}
-          onChange={handleChange}
-        />
-        <PasswordInput
-          label="Password"
-          placeholder="Enter your password"
-          size="md"
-          className="w-full"
-          name={"password"}
-          value={formData.password}
-          onChange={handleChange}
-        />
-        <PasswordInput
-          label="Confirm Password"
-          placeholder="Re-Enter your password"
-          size="md"
-          className="w-full"
-          name={"confirmPassword"}
-          value={formData.confirmPassword}
-          onChange={handleChange}
-        />
-        <div className="w-full">
-          <Checkbox
-            label={
-              <span className=" font-semibold">
-                I accept the{" "}
-                <span className="text-blue-700 font-semibold">
-                  terms and conditions.
-                </span>
-              </span>
-            }
-            checked={formData.accept}
-            onChange={() =>
-              setFormData({ ...formData, accept: !formData.accept })
-            }
-          />
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Background */}
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: `url("/lovable-uploads/cc0094aa-ced3-4e50-b5f1-d61b7b6d2988.png")`,
+          backgroundPosition: "center 75%",
+        }}
+      />
+      <div className="absolute inset-0 bg-black bg-opacity-20"></div>
+
+      {/* Desktop Layout */}
+      <div className="hidden lg:flex relative z-10 min-h-screen">
+        {/* Left Side */}
+        <div className="lg:w-1/2 flex items-center justify-center">
+          <div className="text-center text-white mt-16">
+            <img
+              src="/lovable-uploads/ceabc523-dba1-475b-b670-7ed6b88782a1.png"
+              alt="STEM for Society Logo"
+              className="h-32 w-32 mx-auto mb-4 opacity-50"
+            />
+            <h1 className="text-4xl font-bold mb-4">STEM FOR SOCIETY</h1>
+            <p className="text-xl">
+              Join us to Innovate, Incubate and Impact the world together!
+            </p>
+          </div>
         </div>
 
-        <Button
-          radius={999}
-          w="300"
-          onClick={handleSubmit}
-          disabled={signUpMutation.isPending}
-        >
-          {signUpMutation.isPending ? "Please wait..." : "Sign Up"}
-        </Button>
-        <div className="w-full flex flex-row gap-2 justify-center">
-          <Text ta="left" fw={500}>
-            Have an account?
-          </Text>
-          <Link to="/login">
-            <Text ta="left" c="blue" fw={500}>
-              Log In
-            </Text>
-          </Link>
+        {/* Right Side */}
+        <div className="lg:w-1/2 relative">
+          <div className="absolute inset-0 bg-white/70 rounded-l-3xl"></div>
+          <div className="relative z-10 flex items-center justify-center px-8 py-8">
+            <div className="w-full max-w-md">
+              <div className="text-center mb-6 pt-6">
+                <h1 className="text-3xl font-bold text-gray-800 mb-2">
+                  Create an Account
+                </h1>
+                <p className="text-gray-600 text-lg">
+                  Enter your details to proceed further
+                </p>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <Label>Name</Label>
+                  <Input
+                    name="firstName"
+                    type="text"
+                    placeholder="Enter your name"
+                    value={formData.firstName}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label>Email</Label>
+                  <Input
+                    name="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label>Phone</Label>
+                  <Input
+                    name="mobile"
+                    type="tel"
+                    placeholder="Enter your phone"
+                    value={formData.mobile}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label>Password</Label>
+                  <Input
+                    name="password"
+                    type="password"
+                    placeholder="Enter your password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label>Confirm Password</Label>
+                  <Input
+                    name="confirmPassword"
+                    type="password"
+                    placeholder="Confirm your password"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+
+                <div className="flex items-center space-x-2 py-2">
+                  <Checkbox
+                    id="terms"
+                    checked={formData.accept}
+                    onCheckedChange={handleCheckboxChange}
+                  />
+                  <Label htmlFor="terms" className="text-sm text-gray-600">
+                    I accept the terms and conditions
+                  </Label>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                  disabled={signUpMutation.isPending}
+                >
+                  {signUpMutation.isPending ? "Please wait..." : "Sign Up"}
+                </Button>
+              </form>
+
+              <div className="text-center mt-4">
+                <p className="text-sm text-gray-600">
+                  Already have an account?{" "}
+                  <Link
+                    to="/login"
+                    className="text-blue-600 hover:underline font-semibold"
+                  >
+                    Login
+                  </Link>
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <img
-        src={bg}
-        className="h-full fixed top-0 left-0 -z-50 w-full object-cover"
-        alt="Background"
-      />
+      {/* Mobile Layout */}
+      {/* You can reuse the same form here for mobile design */}
     </div>
   );
-}
+};
 
-export default SignUp;
+export default Signup;
