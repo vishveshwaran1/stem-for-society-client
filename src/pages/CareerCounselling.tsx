@@ -122,7 +122,7 @@ export default function CareerCounselling() {
       // @ts-expect-error dhe chi pae
       const rzp: RazorpayInstance = new Razorpay(options);
 
-      // @ts-expect-error dhe chi pae
+   
       rzp.on("payment.failed", (res) => {
         console.log("Failure:", res);
         toast.error("Payment failed! Reason:\n" + res.error.description, {
