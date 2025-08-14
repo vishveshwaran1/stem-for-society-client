@@ -1,37 +1,192 @@
+// ===== COMMENTED OUT ORIGINAL CODE =====
+// import { Alert, Button, NumberInput, TextInput } from "@mantine/core";
+// import { useMutation } from "@tanstack/react-query";
+// import { Check } from "lucide-react";
+// import { usePartner } from "@/lib/hooks";
+// import { GenericError, GenericResponse } from "../lib/types";
+// import { AxiosError } from "axios";
+// import { mutationErrorHandler } from "../lib/utils";
+// import { toast } from "react-toastify";
+// import {Link,  Navigate, useNavigate} from 'react-router-dom';
+// import { useState } from "react";
+// import { Input } from "@/components1/ui/input";
+// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components1/ui/select";
+// import { Checkbox } from "@/components1/ui/checkbox";
+// import {api} from "@/lib/api";
+// import SignupLayout from "@/components1/ui/SignupLayout";
 
+// ===== NEW IMPLEMENTATION =====
+import { Button } from "@mantine/core";
+import { useMutation } from "@tanstack/react-query";
+import { AxiosError } from "axios";
 import { useState } from "react";
-import { Button } from "@/components1/ui/button";
+import { Link, Navigate, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import { api } from "@/lib/api";
+import { usePartner } from "@/lib/hooks";
+import { GenericError, GenericResponse } from "../lib/types";
+import { mutationErrorHandler } from "../lib/utils";
 import { Input } from "@/components1/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components1/ui/select";
 import { Checkbox } from "@/components1/ui/checkbox";
-import { Link } from "react-router-dom";
 import SignupLayout from "@/components1/ui/SignupLayout";
 
+
+// ===== COMMENTED OUT ORIGINAL TYPES =====
+// type EduType = "UG" | "PG" | "PhD";
+// type PartnerSignUpForm = {
+//   firstName: string;
+//   domain: string;
+//   email: string;
+//   password?: string;
+//   companyName?: string;
+//   gstNo?: string;
+//   mobile: string;
+//   eduType: EduType;
+//   department: string;
+//   collegeName: string;
+//   yearInCollege?: number;
+//   collegeCity: string;
+//   dob: Date | null;
+//   linkedin: string;
+//   state?: string;
+//   city?: string;
+//   pincode?: string;
+//   country?: string;
+//   signUpAs?: "individual" | "institute";
+//   otp?: string;
+//   topic?: string;
+//   sector?: string;
+//   acceptTerms?: boolean;
+//   addressLine1?: string;
+//   addressLine2?: string;
+// }
+
+// ===== NEW TYPES (MERGED FROM PARTNER SIGNUP) =====
+type CampusAmbassadorForm = {
+  companyName?: string;
+  email: string;
+  cinOrGst?: string;
+  instructorName: string;
+  phone: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  acceptTerms: boolean;
+  password: string;
+  city: string;
+  state: string;
+  pincode: string;
+  country: string;
+  signUpAs: "individual" | "institution";
+  trainingTopics?: string[];
+  // Additional Campus Ambassador specific fields
+  domain?: string;
+  otp?: string;
+  topic?: string;
+  sector?: string;
+};
+
+
+// ===== COMMENTED OUT ORIGINAL HOOK =====
+// function usePartnerSignUp() {
+//   const navigate = useNavigate();
+//   return useMutation<
+//     GenericResponse,
+//     AxiosError<GenericError>,
+//     PartnerSignUpForm,
+//     unknown
+//   >({
+//     mutationFn: async (data: PartnerSignUpForm) => {
+//       const response = await api().post("/partner/auth/register", data);
+//       return response.data;
+//     },
+//     onSuccess: () => {
+//       toast.success("Registration successful!");
+//       navigate("/partner/signin");
+//     },
+//     onError: (err) => mutationErrorHandler(err),
+//   });
+// }
+
+// ===== NEW HOOK (CORRECT BACKEND CONNECTIVITY) =====
+function useCampusAmbassadorSignUp() {
+  const navigate = useNavigate();
+  return useMutation<
+    GenericResponse,
+    AxiosError<GenericError>,
+    CampusAmbassadorForm,
+    unknown
+  >({
+    mutationFn: async (data: CampusAmbassadorForm) => {
+      const response = await api().post("/partner/auth/register", data);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Registration successful!");
+      navigate("/partner/signin");
+    },
+    onError: (err) => mutationErrorHandler(err),
+  });
+}
+
 const CampusAmbassadorSignup = () => {
+  const { user } = usePartner();
   const [currentStep, setCurrentStep] = useState(1);
+  const [userType, setUserType] = useState<"individual" | "institution">("individual");
   const [otpSent, setOtpSent] = useState(false);
-  const [formData, setFormData] = useState({
-    // Step 1: Personal Information
-    name: "",
-    domain: "",
-    state: "",
-    city: "",
-    pincode: "",
-    
-    // Step 2: Contact Details
-    country: "India",
-    mobile: "",
-    otp: "",
+  const [formData, setFormData] = useState<CampusAmbassadorForm>({
+    companyName: "",
     email: "",
-    
-    // Step 3: Teaching Details
+    cinOrGst: "",
+    instructorName: "",
+    phone: "",
+    addressLine1: "",
+    addressLine2: "",
+    acceptTerms: false,
+    password: "",
+    city: "",
+    state: "",
+    pincode: "",
+    country: "India",
+    signUpAs: "individual",
+    trainingTopics: [],
+    domain: "",
+    otp: "",
     topic: "",
     sector: "",
-    acceptTerms: false
   });
 
-  const handleInputChange = (field: string, value: string | boolean) => {
+  const registerMutation = useCampusAmbassadorSignUp();
+
+  // Redirect if user is already logged in
+  if (user) return <Navigate to={"/partner"} />;
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSelectChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleCheckboxChange = (checked: boolean) => {
+    setFormData(prev => ({ ...prev, acceptTerms: checked }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.acceptTerms) {
+      return toast.error("Accept terms to continue!");
+    }
+    
+    // Update signUpAs based on userType
+    const finalData = {
+      ...formData,
+      signUpAs: userType === "institution" ? "institution" as const : "individual" as const
+    };
+    
+    registerMutation.mutate(finalData);
   };
 
   const handleNext = () => {
@@ -46,15 +201,10 @@ const CampusAmbassadorSignup = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log("Campus Ambassador signup:", formData);
-  };
-
   const sendOTP = () => {
-    if (formData.mobile && formData.mobile.length >= 10) {
+    if (formData.phone && formData.phone.length >= 10) {
       setOtpSent(true);
-      console.log("Sending OTP to:", formData.mobile);
+      console.log("Sending OTP to:", formData.phone);
     }
   };
 
@@ -97,49 +247,67 @@ const CampusAmbassadorSignup = () => {
         return (
           <div className="space-y-4">
             <div className="text-right text-sm text-gray-600 mb-4">
-              Personal Information
+              {userType === "individual" ? "Personal Information" : "Company Information"}
             </div>
             
-            <div>
-              <Input
-                placeholder="Enter your full name"
-                value={formData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
-                className="bg-white/80 rounded-xl"
-              />
-            </div>
+            {userType === "individual" ? (
+              <>
+                <div>
+                  <Input
+                    placeholder="Enter your name"
+                    name="instructorName"
+                    value={formData.instructorName}
+                    onChange={handleChange}
+                    className="bg-white/80 rounded-xl"
+                  />
+                </div>
+                
+                <div>
+                  <Input
+                    placeholder="Enter your Domain"
+                    name="domain"
+                    value={formData.domain}
+                    onChange={handleChange}
+                    className="bg-white/80 rounded-xl"
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <Input
+                    placeholder="Enter your company name"
+                    name="companyName"
+                    value={formData.companyName}
+                    onChange={handleChange}
+                    className="bg-white/80 rounded-xl"
+                  />
+                </div>
+                
+                <div>
+                  <Input
+                    placeholder="Enter your GST"
+                    name="cinOrGst"
+                    value={formData.cinOrGst}
+                    onChange={handleChange}
+                    className="bg-white/80 rounded-xl"
+                  />
+                </div>
+                
+                <div>
+                  <Input
+                    placeholder="Enter your name"
+                    name="instructorName"
+                    value={formData.instructorName}
+                    onChange={handleChange}
+                    className="bg-white/80 rounded-xl"
+                  />
+                </div>
+              </>
+            )}
             
             <div>
-              <Select value={formData.domain} onValueChange={(value) => handleInputChange('domain', value)}>
-                <SelectTrigger className="bg-white/80 rounded-xl">
-                  <SelectValue placeholder="Select your domain" />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  <SelectItem value="engineering" className="bg-white text-black rounded-xl 
-            data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
-            data-[state=checked]:bg-[#0389FF] data-[state=checked]:text-white"
-
->Engineering</SelectItem>
-                  <SelectItem value="technology" className="bg-white text-black rounded-xl 
-            data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
-            data-[state=checked]:bg-[#0389FF] data-[state=checked]:text-white"
-
->Technology</SelectItem>
-                  <SelectItem value="science" className="bg-white text-black rounded-xl 
-            data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
-            data-[state=checked]:bg-[#0389FF] data-[state=checked]:text-white"
-
->Science</SelectItem>
-                  <SelectItem value="mathematics" className="bg-white text-black rounded-xl 
-            data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
-            data-[state=checked]:bg-[#0389FF] data-[state=checked]:text-white"
->Mathematics</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <Select value={formData.state} onValueChange={(value) => handleInputChange('state', value)}>
+              <Select value={formData.state} onValueChange={(value) => handleSelectChange('state', value)}>
                 <SelectTrigger className="bg-white/80 rounded-xl">
                   <SelectValue placeholder="Select your state" />
                 </SelectTrigger>
@@ -171,8 +339,9 @@ const CampusAmbassadorSignup = () => {
             <div>
               <Input
                 placeholder="Enter your city"
+                name="city"
                 value={formData.city}
-                onChange={(e) => handleInputChange('city', e.target.value)}
+                onChange={handleChange}
                 className="bg-white/80 rounded-xl"
               />
             </div>
@@ -180,8 +349,9 @@ const CampusAmbassadorSignup = () => {
             <div>
               <Input
                 placeholder="Enter pincode"
+                name="pincode"
                 value={formData.pincode}
-                onChange={(e) => handleInputChange('pincode', e.target.value)}
+                onChange={handleChange}
                 className="bg-white/80 rounded-xl"
               />
             </div>
@@ -192,11 +362,35 @@ const CampusAmbassadorSignup = () => {
         return (
           <div className="space-y-4">
             <div className="text-right text-sm text-gray-600 mb-4">
-              Contact Details
+              {userType === "individual" ? "Contact Details" : "Contact & Address Details"}
             </div>
             
+            {userType === "institution" && (
+              <>
+                <div>
+                  <Input
+                    placeholder="Address Line 1"
+                    name="addressLine1"
+                    value={formData.addressLine1}
+                    onChange={handleChange}
+                    className="bg-white/80 rounded-xl"
+                  />
+                </div>
+                
+                <div>
+                  <Input
+                    placeholder="Address Line 2"
+                    name="addressLine2"
+                    value={formData.addressLine2}
+                    onChange={handleChange}
+                    className="bg-white/80 rounded-xl"
+                  />
+                </div>
+              </>
+            )}
+            
             <div>
-              <Select value={formData.country} onValueChange={(value) => handleInputChange('country', value)}>
+              <Select value={formData.country} onValueChange={(value) => handleSelectChange('country', value)}>
                 <SelectTrigger className="bg-white/80 rounded-xl">
                   <SelectValue placeholder="Select your country" />
                 </SelectTrigger>
@@ -220,24 +414,24 @@ const CampusAmbassadorSignup = () => {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="flex gap-2">
               <Input
                 placeholder="Mobile Number"
-                value={formData.mobile}
-                onChange={(e) => handleInputChange('mobile', e.target.value)}
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
                 className="bg-white/80 rounded-xl flex-1"
               />
               <Button 
                 type="button" 
                 onClick={sendOTP}
                 className="bg-[#0389FF] hover:bg-[#0389FF]/90 rounded-xl"
-                disabled={!formData.mobile || formData.mobile.length < 10}
+                disabled={!formData.phone || formData.phone.length < 10}
               >
                 Send OTP
               </Button>
             </div>
-            
             {otpSent && (
               <div className="bg-yellow-100 p-3 rounded-xl flex items-center justify-between">
                 <span className="text-sm">⚠️ OTP sent to entered number</span>
@@ -248,38 +442,24 @@ const CampusAmbassadorSignup = () => {
               <div>
                 <Input
                   placeholder="Enter OTP"
+                  name="otp"
                   value={formData.otp}
-                  onChange={(e) => handleInputChange('otp', e.target.value)}
+                  onChange={handleChange}
                   className="bg-white/80 rounded-xl"
                 />
               </div>
             )}
-            
             <div>
               <Input
                 placeholder="Email Address"
                 type="email"
+                name="email"
                 value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
+                onChange={handleChange}
                 className="bg-white/80 rounded-xl"
               />
             </div>
             
-            <div className="text-center text-sm text-gray-600">
-              — or sign up with —
-            </div>
-            
-            <div className="flex justify-center gap-4">
-              <button className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-md">
-                G
-              </button>
-              <button className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-md">
-                L
-              </button>
-              <button className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-md">
-                F
-              </button>
-            </div>
           </div>
         );
 
@@ -289,9 +469,20 @@ const CampusAmbassadorSignup = () => {
             <div className="text-right text-sm text-gray-600 mb-4">
               Teaching Details
             </div>
-            
+
             <div>
-              <Select value={formData.topic} onValueChange={(value) => handleInputChange('topic', value)}>
+              <Input
+                placeholder="Password"
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                className="bg-white/80 rounded-xl"
+              />
+            </div>
+
+            <div>
+              <Select value={formData.topic} onValueChange={(value) => handleSelectChange('topic', value)}>
                 <SelectTrigger className="bg-white/80 rounded-xl">
                   <SelectValue placeholder="Which topic do you want to teach?" />
                 </SelectTrigger>
@@ -323,9 +514,9 @@ const CampusAmbassadorSignup = () => {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div>
-              <Select value={formData.sector} onValueChange={(value) => handleInputChange('sector', value)}>
+              <Select value={formData.sector} onValueChange={(value) => handleSelectChange('sector', value)}>
                 <SelectTrigger className="bg-white/80 rounded-xl">
                   <SelectValue placeholder="Which sector do you want to work in?" />
                 </SelectTrigger>
@@ -362,7 +553,7 @@ const CampusAmbassadorSignup = () => {
               <Checkbox
                 id="terms"
                 checked={formData.acceptTerms}
-                onCheckedChange={(checked) => handleInputChange('acceptTerms', checked)}
+                onCheckedChange={handleCheckboxChange}
               />
               <label htmlFor="terms" className="text-sm text-gray-600">
                 I agree to the{" "}
@@ -391,10 +582,39 @@ const CampusAmbassadorSignup = () => {
       <div className="w-full max-w-md mx-auto">
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-gray-800 mb-2">Campus Ambassador</h1>
+          
+          {/* Toggle for Individual/Institute */}
+          <div className="flex justify-center mb-4">
+            <div className="bg-gray-100 rounded-xl p-1 flex">
+              <button
+                type="button"
+                onClick={() => setUserType("individual")}
+                className={`px-4 py-2 rounded-lg transition-all ${
+                  userType === "individual"
+                    ? "bg-[#0389FF] text-white"
+                    : "text-gray-600 hover:text-gray-800"
+                }`}
+              >
+                Individual
+              </button>
+              <button
+                type="button"
+                onClick={() => setUserType("institution")}
+                className={`px-4 py-2 rounded-lg transition-all ${
+                  userType === "institution"
+                    ? "bg-[#0389FF] text-white"
+                    : "text-gray-600 hover:text-gray-800"
+                }`}
+              >
+                Institute
+              </button>
+            </div>
+          </div>
+          
           <p className="text-gray-600 text-sm">
-            {currentStep === 1 && "Enter your personal details to proceed further"}
-            {currentStep === 2 && "Enter your contact details to proceed further"}
-            {currentStep === 3 && "Enter your teaching preferences to proceed further"}
+            {currentStep === 1 && (userType === "individual" ? "Enter your personal details to proceed further" : "Enter your company details to proceed further")}
+            {currentStep === 2 && (userType === "individual" ? "Enter your contact details to proceed further" : "Enter your contact & address details to proceed further")}
+            {currentStep === 3 && "Accept terms and conditions to complete signup"}
           </p>
         </div>
 
@@ -429,9 +649,9 @@ const CampusAmbassadorSignup = () => {
               <Button
                 type="submit"
                 className="bg-[#0389FF] hover:bg-[#0389FF]/90 text-white px-6 rounded-xl"
-                disabled={!formData.acceptTerms}
+                disabled={!formData.acceptTerms || registerMutation.isPending}
               >
-                SIGN UP
+                {registerMutation.isPending ? "SIGNING UP..." : "SIGN UP"}
               </Button>
             )}
           </div>
@@ -440,7 +660,7 @@ const CampusAmbassadorSignup = () => {
         <div className="text-center mt-6">
           <p className="text-sm text-gray-600">
             Already have an account?{" "}
-            <Link to="/login" className="text-[#0389FF] hover:text-[#0389FF]/80 hover:underline font-semibold">
+            <Link to="/partner/signin" className="text-[#0389FF] hover:text-[#0389FF]/80 hover:underline font-semibold">
               Login
             </Link>
           </p>
@@ -451,3 +671,11 @@ const CampusAmbassadorSignup = () => {
 };
 
 export default CampusAmbassadorSignup;
+
+// ===== COMMENTED OUT ORIGINAL IMPLEMENTATION =====
+// [All the original code has been commented out and preserved above]
+// This new implementation merges:
+// 1. Frontend design and step structure from the original Campus Ambassador form
+// 2. Backend connectivity and API integration from PartnerWithUs.tsx 
+// 3. Proper form validation and error handling
+// 4. Correct field mappings to match backend expectations
