@@ -7,12 +7,13 @@ import { ArrowLeft, Share2, Filter, Search, Calendar, MapPin, DollarSign, Chevro
 import { Link } from 'react-router-dom';
 import FilterDropdown from '@/components1/FilterDropdown';
 import { motion, AnimatePresence } from 'framer-motion';
-
+import { useNavigate } from "react-router-dom";
 interface FilterOption {
   id: string;
   label: string;
   checked: boolean;
 }
+
 
 
 const Courses = () => {
@@ -186,6 +187,7 @@ const groupedCourses = filteredCourses.reduce((acc, course) => {
   acc[course.month].push(course);
   return acc;
 }, {} as Record<string, typeof courses>);
+ const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -431,7 +433,7 @@ const groupedCourses = filteredCourses.reduce((acc, course) => {
                                         <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                                           <Button 
                                             className="bg-[#0389FF] hover:bg-[#0389FF]/90 text-white"
-                                            onClick={(e) => e.preventDefault()}
+                                            onClick={() => navigate(`/course-detail/${course.id}`)}
                                           >
                                             REGISTER NOW
                                           </Button>
