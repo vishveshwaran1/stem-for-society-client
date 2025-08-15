@@ -60,6 +60,7 @@ import CampusAmbassadorDash from "./pages/CampusAmbassadorDash";
 import CampusAmbassadorBooking from "./pages/CampusAmbassadorBooking";
 import PartnerRole from "./pages/PartnerRole";
 import CampusAmbassadorSignup from "./pages/CampusAmbassadorSignup";
+import InstitutionPortal from './pages/PartnerInstitutionPortal';
 import InstitutionLogin from "./pages/InstitutionLogin";
 import Courses from "./pages/Courses";
 import CourseDetail from "./pages/CourseDetail";
@@ -102,7 +103,8 @@ function App() {
                 <Route path="/join-community" element={<JoinCommunity />} />
                 <Route path="/partner-role" element={<PartnerRole />} />
                 <Route path="/campus-ambassador-signup" element={<CampusAmbassadorSignup />} />
-                <Route path="/partner-institution-signup" element={<InstitutionLogin />} />
+                <Route path="/partner-institution-signup" element={<InstitutionPortal />} />
+                <Route path="/partner-signin" element={<InstitutionLogin />} />
                 <Route path="/courses" element={<Courses />} />
                 <Route path="/course-detail/:id" element={<CourseDetail />} />
                 <Route

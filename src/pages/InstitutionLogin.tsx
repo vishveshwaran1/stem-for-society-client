@@ -5,6 +5,7 @@ import { Input } from '@/components1/ui/input';
 import { Checkbox } from '@/components1/ui/checkbox';
 import { Mail, User } from 'lucide-react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
+import SignupLayout from '@/components1/ui/SignupLayout'
 
 type PartnerSignInForm = {
   email: string;
@@ -42,27 +43,79 @@ const InstitutionLogin = () => {
   if (user) return <Navigate to="/partner" />;
 
   return (
-    <div
-      className="min-h-screen bg-cover bg-center bg-fixed relative"
-      style={{
-        backgroundImage: `url('/lovable-uploads/cc0094aa-ced3-4e50-b5f1-d61b7b6d2988.png')`
-      }}
+    <SignupLayout 
+      title="Innovate, Incubate and Impact the world together!" 
+      subtitle="Join us to Innovate, Incubate and Impact!"
     >
+      <div className="w-full max-w-md mx-auto">
+        <div className="text-center mb-6">
+        <p className="text-2xl font-bold text-gray-800 mb-2  drop-shadow-md ">Partner with us to transform education!</p></div>
+
+        <form className="space-y-4" onSubmit={handleSubmit}>
+              <div>
+                <Input
+                  type="email"
+                  placeholder="Email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 bg-white/90 backdrop-blur-sm border border-white/50 rounded-xl placeholder-gray-500 focus:ring-2 focus:ring-[#0389FF] focus:border-transparent shadow-lg"
+                />
+              </div>
+
+              <div>
+                <Input
+                  type="password"
+                  placeholder="Password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 bg-white/90 backdrop-blur-sm border border-white/50 rounded-xl placeholder-gray-500 focus:ring-2 focus:ring-[#0389FF] focus:border-transparent shadow-lg"
+                />
+              </div>
+
+              <div className="flex items-center justify-between py-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="remember"
+                    checked={rememberPassword}
+                    onCheckedChange={(checked) => setRememberPassword(checked as boolean)}
+                    className="data-[state=checked]:bg-[#0389FF] data-[state=checked]:border-[#0389FF] border-white/50 bg-white/30"
+                  />
+                  <label htmlFor="remember" className="text-sm text-white/90">
+                    Remember Password
+                  </label>
+                </div>
+                <button type="button" className="text-sm text-[#0389FF] hover:text-[#0389FF]/80 font-medium">
+                  Forget Password?
+                </button>
+              </div>
+
+              <Button
+                className="w-full bg-[#0389FF] hover:bg-[#0389FF]/90 text-white py-3 rounded-xl font-semibold shadow-lg"
+                disabled={isSigningIn}
+                type="submit"
+              >
+                LOGIN
+              </Button>
+            </form>
+
+
+      </div>
+    </SignupLayout>
+  );
+  return (
+
+
+    <div
+      className="min-h-screen bg-cover bg-center bg-fixed relative">
       {/* Overlay */}
       <div className="absolute inset-0 bg-black/20"></div>
 
       {/* Desktop Layout */}
       <div className="hidden md:flex min-h-screen relative z-10">
         {/* Left Side */}
-        <div className="flex-1 flex flex-col justify-center items-center text-center px-12">
-          <img
-            src="/lovable-uploads/ceabc523-dba1-475b-b670-7ed6b88782a1.png"
-            alt="STEM for Society Logo"
-            className="h-48 w-48 lg:h-64 lg:w-64 mb-8 drop-shadow-2xl"
-          />
-          <h1 className="text-5xl font-bold text-white mb-4 drop-shadow-lg">STEM FOR SOCIETY</h1>
-          <p className="text-xl text-white/95 drop-shadow-md">Partner with us to transform education!</p>
-        </div>
+        
 
         {/* Right Side */}
         <div className="w-full max-w-md bg-white/20 backdrop-blur-lg border border-white/30 rounded-3xl shadow-2xl m-8 flex flex-col justify-center px-8 py-12">

@@ -29,7 +29,7 @@ export default function PartnerLayout() {
 
   useEffect(() => {
     if (!user && !shouldRedirect) {
-      navigate("/partner/signin");
+      navigate("/partner-signin");
       return;
     }
 

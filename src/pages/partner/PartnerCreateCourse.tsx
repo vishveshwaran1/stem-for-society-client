@@ -85,7 +85,6 @@ function useCreateCourse() {
       formData.append("trainingLink", data.trainingLink);
       formData.append("location", data.location);
       formData.append("type", data.mode);
-      // @ts-expect-error iknow
       formData.append("category", data.category);
       formData.append("startDate", data.startDate?.toISOString() || "");
       formData.append("endDate", data.endDate?.toISOString() || "");
