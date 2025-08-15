@@ -64,6 +64,7 @@ import InstitutionPortal from './pages/PartnerInstitutionPortal';
 import InstitutionLogin from "./pages/InstitutionLogin";
 import Courses from "./pages/Courses";
 import CourseDetail from "./pages/CourseDetail";
+import Community from "./pages/Community";
 function AppLayout() {
   return (
     <>
@@ -96,6 +97,7 @@ function App() {
                 <Route path="/blogs" element={<BlogListing />} />
                 <Route path="/blogs/:id" element={<BlogSpotlight />} />
                 <Route path="/pricing" element={<PricingPage />} />
+                <Route path="/community" element={<Community />} />
                 <Route path="/blogs/new" element={<BlogCreate />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/privacy-policy" element={<PrivacyPolicy />} />
