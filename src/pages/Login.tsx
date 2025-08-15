@@ -24,7 +24,7 @@ const Login = () => {
     },
   });
 
-  if (user) return <Navigate to={"/training"} />;
+  if (user) return <Navigate to={"/"} />;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
