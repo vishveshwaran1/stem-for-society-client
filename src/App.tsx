@@ -65,6 +65,10 @@ import InstitutionLogin from "./pages/InstitutionLogin";
 import Courses from "./pages/Courses";
 import CourseDetail from "./pages/CourseDetail";
 import Community from "./pages/Community";
+import Blog from "./pages/Blog";
+import BlogArticle from "./pages/BlogArticle";
+import BlogPost from "./pages/BlogPost";
+import CareerCounsellingBookingFlow from "./pages/CareerCounsellingBookingFlow";
 function AppLayout() {
   return (
     <>
@@ -109,14 +113,13 @@ function App() {
                 <Route path="/partner-signin" element={<InstitutionLogin />} />
                 <Route path="/courses" element={<Courses />} />
                 <Route path="/course-detail/:id" element={<CourseDetail />} />
-                <Route
-                  path="/psychology-counselling"
-                  element={<PsychologyCounselling />}
-                />
-                <Route
-                  path="/career-counselling"
-                  element={<CareerCounselling />} 
-                />
+                <Route path="/blog" element={<Blog />} />
+                <Route path="/blog-article" element={<BlogArticle />} />
+                <Route path="/blog-post" element={<BlogPost />} />
+                <Route path="/career-counselling-booking" element={<CareerCounsellingBookingFlow/>} />
+                <Route path="/psychology-counselling" element={<PsychologyCounselling />} />
+                <Route path="/career-counselling" element={<CareerCounselling />} />
+              
                 <Route
                   path="/institution-pricing"
                   element={<InstitutionPricing />}

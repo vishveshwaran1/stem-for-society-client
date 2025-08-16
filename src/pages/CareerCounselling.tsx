@@ -1,308 +1,275 @@
-import {
-  Alert,
-  Button,
-  List,
-  SegmentedControl,
-  Select,
-  TextInput,
-} from "@mantine/core";
-import { useMutation } from "@tanstack/react-query";
-import { AxiosError } from "axios";
-import { AlertCircle, CheckCircle } from "lucide-react";
-import { useCallback, useState } from "react";
-import { toast } from "react-toastify";
-import CareerWhyChooseUs from "../components/CareerWhyChooseUs";
-import { api } from "../lib/api";
-import {
-  GenericError,
-  GenericResponse,
-  RazorpayOrderOptions,
-} from "../lib/types";
-import { initializeRazorpay, mutationErrorHandler } from "../lib/utils";
-import CareerCounPricingPage from "./CareerCounPricing";
-import { CreatePaymentResponse } from "./TrainingSpotlight";
-import { RZPY_KEYID } from "../Constants";
+import React from 'react';
+import Header from '@/components1/Header';
+import Footer from '@/components1/Footer';
+import GridBackground from '@/components1/GridBackground';
+import { Button } from '@/components1/ui/button';
+import { ArrowLeft, Share2, Check } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
-//Photo by <a href="https://unsplash.com/@wocintechchat?utm_content=creditCopyText&utm_medium=referral&utm_source=unsplash">Christina @ wocintechchat.com</a> on <a href="https://unsplash.com/photos/shallow-focus-photo-of-woman-in-beige-open-cardigan-rCyiK4_aaWw?utm_content=creditCopyText&utm_medium=referral&utm_source=unsplash">Unsplash</a>
-
-const careerCounsellingServices = [
-  "Career choice",
-  "CV/Resume prep",
-  "Research Proposal editing",
-  "LOR/SOP editing & preparation",
-  "Shortlisting Abroad PhD",
-  "PG/PhD abroad application guidance",
-  "Post Doc Application",
-  "Industry jobs",
-] as const;
-
-type CareerCounsellingServiceType = (typeof careerCounsellingServices)[number];
-
-type CareerCounsellingForm = {
-  firstName: string;
-  lastName?: string;
-  email: string;
-  mobile: string;
-  service?: CareerCounsellingServiceType;
-  plan?: "Basics" | "Premium";
-};
-
-function useRegisterCareer() {
-  return useMutation<
-    GenericResponse<CreatePaymentResponse>,
-    AxiosError<GenericError>,
-    CareerCounsellingForm,
-    unknown
-  >({
-    mutationFn: async (data) => {
-      const response = await api().post("/enquiry/career", data);
-      return response.data;
-    },
-    onError: (err) => mutationErrorHandler(err),
-  });
-}
-
-export default function CareerCounselling() {
-  const [formData, setFormData] = useState<CareerCounsellingForm>({
-    firstName: "",
-    lastName: "",
-    email: "",
-    mobile: "",
-  });
-  const [switchPlanOrService, setSwitchPlanOrService] = useState<
-    "plans" | "services"
-  >("services");
-  const { isPending, mutateAsync } = useRegisterCareer();
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handlePayment = useCallback(async () => {
-    try {
-      const rzrpyInit = await initializeRazorpay();
-      if (!rzrpyInit) return toast.error("Unable to initialize payment!");
-
-      const data = await mutateAsync(formData);
-
-      console.log("🚀 ~ handlePayment ~ data:", data);
-
-      if (!data || !data.data) {
-        toast.error("Something went wrong in creating payment!");
-        return;
-      }
-      const order = data.data;
-
-      const options: RazorpayOrderOptions = {
-        key: RZPY_KEYID,
-        amount: Number(order.amount) * 100,
-        currency: "INR",
-        name: "Stem for Society",
-        description: formData.service
-          ? `Purchase ${formData.service} service`
-          : "Premium plan purchase",
-        image: "https://stem-4-society.netlify.app/logo-01.png",
-        order_id: order.orderId,
-        prefill: {
-          name: formData.firstName + " " + (formData.lastName ?? ""),
-          email: formData.email,
-          contact: formData.mobile,
-        },
-        async handler() {
-          toast.success(
-            "Payment was made successfully! We will verify the payment and will be in touch with you shortly",
-            { autoClose: false, draggable: false },
-          );
-        },
-      };
-
-      // @ts-expect-error dhe chi pae
-      const rzp: RazorpayInstance = new Razorpay(options);
-
-   
-      rzp.on("payment.failed", (res) => {
-        console.log("Failure:", res);
-        toast.error("Payment failed! Reason:\n" + res.error.description, {
-          autoClose: false,
-          closeOnClick: false,
-        });
-        toast.error(
-          "Please note Order ID: " +
-            res.error.metadata.order_id +
-            "\n Payment ID: " +
-            res.error.metadata.payment_id,
-          { autoClose: false, closeOnClick: false },
-        );
-      });
-
-      rzp.open();
-    } catch {
-      toast.error("Something went wrong in the paymnent process");
-    }
-  }, [formData, mutateAsync]);
-
+const CareerCounselling = () => {
   return (
-    <div className="container mx-auto px-4 lg:w-[80%] md:w-[60%] my-12 grid gap-7">
-      {/* Header */}
-      <h2 className="text-3xl font-semibold text-gray-800 text-center mb-4">
-        Career Counselling
-      </h2>
-      <div className="grid lg:grid-cols-2">
-        <img
-          src="/careercoun.svg"
-          alt="Career Counselling"
-          className="rounded-xl"
-        />
-        <div className="p-4 space-y-3">
-          <p className="text-lg text-justify text-gray-600">
-            <span className="font-bold text-pink-800">Stem For Society</span>{" "}
-            provide{" "}
-            <span className="font-bold text-pink-800">career counselling</span>{" "}
-            services by guide individuals in making career choices by assessing
-            their interests, skills, and goals. These services offer
-            personalized advice, resources, and support to navigate education
-            paths, job opportunities, and industry trends. By addressing
-            career-related concerns, they empower individuals to build
-            fulfilling careers and achieve long-term professional success.{" "}
-            <span className="font-bold">
-              Stem for Society has 200+ subject experts as mentor across
-              globally
-            </span>
+    <div className="min-h-screen bg-gray-50">
+     
+   <div className="relative overflow-hidden min-h-screen"style={{ height: '100%', minHeight: '100%' }}
+>
+  {/* Grid background */}
+  <div 
+    className="absolute inset-0 opacity-50 pointer-events-none z-0"
+    style={{
+      minHeight: '100vh',
+      backgroundImage: `
+        linear-gradient(rgba(107,114,128,0.5) 2px, transparent 2px),
+        linear-gradient(90deg, rgba(107,114,128,0.5) 2px, transparent 2px)
+      `,
+      backgroundSize: '100px 100px',
+     WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 35%, transparent 100%)',
+maskImage: 'linear-gradient(to bottom, black 0%, transparent 35%, transparent 100%)',
+
+
+      WebkitMaskRepeat: 'no-repeat',
+      maskRepeat: 'no-repeat',
+      WebkitMaskSize: '100% 100%',
+      maskSize: '100% 100%',
+    }}
+  />
+
+  {/* Content above grid */}
+  <div className="relative z-10">
+    <Header />
+
+    {/* Navigation Bar */}
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div className="flex items-center justify-between">
+        <Link to="/">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex items-center space-x-2 bg-[#0389FF] text-white border-[#0389FF] rounded-full px-4 hover:bg-[#0389FF]/90"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Back</span>
+          </Button>
+        </Link>
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex items-center space-x-2 bg-[#0389FF] text-white border-[#0389FF] rounded-full px-4 hover:bg-[#0389FF]/90"
+        >
+          <Share2 className="h-4 w-4" />
+          <span>Share</span>
+        </Button>
+      </div>
+    </div>
+      <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold text-gray-900 mb-6">Career Counselling</h1>
+        </div>
+  </div>
+</div>
+
+
+
+
+      {/* Main Content */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Page Title */}
+      
+
+        {/* Hero Image Section with uploaded image */}
+        <div className="relative rounded-2xl overflow-hidden mb-12">
+          <img 
+            src="/lovable-uploads/img2.png" 
+            alt="Career Counselling" 
+            className="w-full h-96 object-cover"
+          />
+          <div className="absolute inset-0 bg-black bg-opacity-40 flex items-end">
+            <div className="p-8">
+              <div className="text-white">
+                <p className="text-lg leading-relaxed max-w-2xl">
+                  Stem For Society provide career counselling services by subject experts in 
+                  making career choices by assessing their interests, skills, and goals.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Description Section */}
+        <div className="mb-12">
+          <p className="text-gray-700 text-base leading-relaxed">
+            These services offer personalized advice, resources, and support to navigate education paths, job 
+            opportunities, and industry trends. By addressing career-related concerns, they empower 
+            individuals to build fulfilling careers and achieve long-term professional success. Stem for Society 
+            has 200+ subject experts as mentor across globally
           </p>
         </div>
-      </div>
-      <div className="grid lg:grid-cols-2 justify-center gap-6">
-        <div className="flex flex-col gap-8">
-          <h3 className="font-semibold text-xl">
-            Stem for Society Support students/Individuals On crafting their
-            right career path by guiding them in
-          </h3>
-          <List
-            spacing="xs"
-            size="md"
-            center
-            icon={<CheckCircle color="green" size={18} />}
-            display={"grid"}
-            style={{
-              gridTemplateColumns: "repeat(2, 1fr)",
-              gap: "1rem",
-              alignItems: "center",
-            }}
-          >
-            {careerCounsellingServices.map((item, index) => (
-              <List.Item key={index}>{item}</List.Item>
-            ))}
-          </List>
+
+        {/* Services Section */}
+        <div className="mb-12">
+          <h3 className="text-lg font-medium text-gray-600 mb-6">Our service includes</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full"></div>
+                <span>Career choice</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full"></div>
+                <span>Shortlisting Abroad PhD</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full"></div>
+                <span>Post Doc Application</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full"></div>
+                <span>PG/PhD abroad application guidance</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full"></div>
+                <span>CV/Resume prep</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full"></div>
+                <span>Research Proposal editing</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full"></div>
+                <span>Industry jobs</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full"></div>
+                <span>LOR/SOP editing & preparation</span>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="text-lg flex flex-col gap-2 w-full">
-          <p>Please fill up the details and we will be in touch</p>
-          <TextInput
-            label="First name"
-            placeholder="Enter your first name"
-            size="sm"
-            className="w-full"
-            required
-            name="firstName"
-            value={formData.firstName}
-            onChange={handleChange}
-          />
-          <TextInput
-            label="Last Name"
-            placeholder="Enter last name"
-            size="sm"
-            className="w-full"
-            name="lastName"
-            value={formData.lastName}
-            onChange={handleChange}
-          />
-          <TextInput
-            label="Mobile No."
-            placeholder="Enter mobile number"
-            size="sm"
-            className="w-full"
-            required
-            name="mobile"
-            value={formData.mobile}
-            onChange={handleChange}
-          />
-          <TextInput
-            label="Email Address"
-            placeholder="Enter email"
-            size="sm"
-            type="email"
-            className="w-full"
-            required
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-          />
-          <SegmentedControl
-            data={[
-              { label: "Choose service", value: "services" },
-              { label: "Choose plans", value: "plans" },
-            ]}
-            value={switchPlanOrService}
-            onChange={(val) => {
-              setFormData((prev) => ({
-                ...prev,
-                [val === "services" ? "plan" : "service"]: undefined,
-              }));
-              setSwitchPlanOrService(val as "services" | "plans");
-            }}
-          />
-          {switchPlanOrService === "services" && (
-            <Select
-              data={careerCounsellingServices}
-              size="sm"
-              className="w-full"
-              label="Service required"
-              placeholder="Choose from a list of services"
-              value={formData.service}
-              onChange={(val) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  service: val as CareerCounsellingServiceType,
-                }))
-              }
-            />
-          )}
-          {switchPlanOrService === "plans" && (
-            <Select
-              data={["Basics", "Premium"]}
-              size="sm"
-              className="w-full"
-              label="Plan"
-              placeholder="Choose from our plans"
-              value={formData.plan}
-              onChange={(val) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  plan: val as "Basics" | "Premium",
-                }))
-              }
-            />
-          )}
-          <Button
-            disabled={isPending}
-            onClick={handlePayment}
-            w={"fit-content"}
-          >
-            Submit
-          </Button>
-          <Alert
-            color="yellow"
-            classNames={{ message: "text-yellow-800" }}
-            icon={<AlertCircle />}
-          >
-            We will be contacting you within 48 hrs.
-          </Alert>
+
+        {/* Pricing Section */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          {/* Basic Plan */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+            <div className="text-center mb-6">
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Basic</h3>
+              <p className="text-sm text-gray-600 mb-4">Want a Specific Service ?</p>
+              
+              <div className="flex items-baseline justify-center space-x-1 mb-4">
+                <span className="text-2xl font-bold text-gray-900">₹ 2,000.00</span>
+                <span className="text-gray-500 text-sm">/ Service</span>
+              </div>
+              
+              <Link to="/career-counselling-booking">
+                <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-xl font-medium">
+                  GET STARTED
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          {/* Standard Plan */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+            <div className="text-center mb-6">
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Standard</h3>
+              <p className="text-sm text-gray-600 mb-4">Essential Skills to Shape a Promising Future</p>
+              
+              <div className="flex items-baseline justify-center space-x-1 mb-4">
+                <span className="text-2xl font-bold text-gray-900">₹ 30,000.00</span>
+                <span className="text-gray-500 text-sm">/ Person</span>
+              </div>
+              
+              <Link to="/career-counselling-booking">
+                <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-xl font-medium">
+                  GET STARTED
+                </Button>
+              </Link>
+            </div>
+
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center space-x-2">
+                <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                <span className="text-gray-600">Extensive candidate profile review</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                <span className="text-gray-600">Shortlisting of colls & University</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                <span className="text-gray-600">Enhancing SOP & LOR</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                <span className="text-gray-600">Refining Research proposal</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                <span className="text-gray-600">Guidance for application</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Premium Plan */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+            <div className="text-center mb-6">
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Premium</h3>
+              <p className="text-sm text-gray-600 mb-4">Comprehensive Training for a Brighter Tomorrow</p>
+              
+              <div className="flex items-baseline justify-center space-x-1 mb-4">
+                <span className="text-2xl font-bold text-gray-900">₹ 50,000.00</span>
+                <span className="text-gray-500 text-sm">/ Person</span>
+              </div>
+              
+              <Link to="/career-counselling-booking">
+                <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-xl font-medium">
+                  GET STARTED
+                </Button>
+              </Link>
+            </div>
+
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center space-x-2">
+                <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                <span className="text-gray-600">Extensive candidate profile review</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                <span className="text-gray-600">Shortlisting of colls & University</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                <span className="text-gray-600">Enhancing SOP & LOR</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                <span className="text-gray-600">Refining Research proposal</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                <span className="text-gray-600">Guidance for application</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                <span className="text-gray-600">Connecting with Experts</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                <span className="text-gray-600">Interview readiness Program</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                <span className="text-gray-600">Guidance for Funding</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-      <CareerWhyChooseUs />
-      <CareerCounPricingPage />
+
+      <Footer />
     </div>
   );
-}
+};
+
+export default CareerCounselling;
