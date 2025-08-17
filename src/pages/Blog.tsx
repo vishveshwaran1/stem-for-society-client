@@ -152,7 +152,7 @@ maskImage: 'linear-gradient(to bottom, black 0%, transparent 35%, transparent 10
         {/* Blog Posts Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {blogs.map((post) => (
-            <Link key={post.id} to={`/blogs/${post.slug}`}>
+            <Link key={post.id} to={`/blog-post/${post.slug}`}>
               <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow cursor-pointer">
                 <div className="h-48 bg-gray-200 relative">
                   <img
@@ -176,7 +176,7 @@ maskImage: 'linear-gradient(to bottom, black 0%, transparent 35%, transparent 10
                   {/* <p className="text-gray-600 mb-4 line-clamp-3">
                     {post.category}
                   </p> */}
-                  
+
                   <div className="flex items-center justify-between text-sm text-gray-500">
                     <div className="flex items-center space-x-2">
                       <span>{post.blogAuthor.name}</span>
