@@ -1,5 +1,6 @@
-
 import React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import {Badge, Card, Image, Skeleton, TextInput} from '@mantine/core';
 import { Button } from '@/components1/ui/button';
 import { Input } from '@/components1/ui/input';
 import { Search, Plus,ArrowLeft,Share2} from 'lucide-react';
@@ -7,71 +8,50 @@ import { Link } from 'react-router-dom';
 import Header from '@/components1/Header';
 import Footer from '@/components1/Footer';
 import GridBackground from '@/components1/GridBackground';
+import { AxiosError } from "axios";
+import Errorbox from "../components/Errorbox";
+import { api } from "../lib/api";
+import { GenericError, GenericResponse } from "../lib/types";
+import { formatDate } from "../lib/utils";
+
+
+export type Blog = {
+  id : string;
+  slug : string;
+  reference : string[];
+  category : string;
+  title : string;
+  content : string;
+  createdAt : string;
+  coverImage : string;
+  blogAuthor : {
+    name : string;
+    linkedin : string;
+    designation? : string;
+  }
+}
+
+function useBlog(){
+  return useQuery<GenericResponse<Blog[]>, AxiosError<GenericError>>({
+    queryKey: ['blogs'],
+    queryFn: async () => {
+      const response = await api().get('/blogs');
+      return response.data;
+    },
+    staleTime: 1000 * 60 * 300, // 5 minutes
+  });
+}
 
 const Blog = () => {
-  const blogPosts = [
-    {
-      id: 1,
-      title: "The Future of STEM Education",
-      excerpt: "Exploring how technology is transforming the way we learn science, technology, engineering, and mathematics.",
-      author: "Dr. Sarah Johnson",
-      date: "2024-01-15",
-      readTime: "5 min read",
-      category: "Education",
-      image: "/placeholder.svg"
-    },
-    {
-      id: 2,
-      title: "Career Opportunities in Biotechnology",
-      excerpt: "A comprehensive guide to the growing field of biotechnology and its career prospects.",
-      author: "Prof. Michael Chen",
-      date: "2024-01-10",
-      readTime: "7 min read",
-      category: "Career",
-      image: "/placeholder.svg"
-    },
-    {
-      id: 3,
-      title: "Research Methodologies in Modern Science",
-      excerpt: "Understanding the latest research methodologies that are shaping scientific discoveries.",
-      author: "Dr. Emily Rodriguez",
-      date: "2024-01-05",
-      readTime: "6 min read",
-      category: "Research",
-      image: "/placeholder.svg"
-    },
-    {
-      id: 4,
-      title: "Artificial Intelligence in Healthcare",
-      excerpt: "How AI is revolutionizing medical diagnosis, treatment planning, and patient care.",
-      author: "Dr. Alex Kumar",
-      date: "2024-01-20",
-      readTime: "8 min read",
-      category: "Technology",
-      image: "/placeholder.svg"
-    },
-    {
-      id: 5,
-      title: "Sustainable Engineering Solutions",
-      excerpt: "Innovative engineering approaches to address climate change and environmental challenges.",
-      author: "Prof. Lisa Wang",
-      date: "2024-01-25",
-      readTime: "6 min read",
-      category: "Innovation",
-      image: "/placeholder.svg"
-    },
-    {
-      id: 6,
-      title: "Quantum Computing Breakthroughs",
-      excerpt: "Latest developments in quantum computing and their potential impact on various industries.",
-      author: "Dr. James Miller",
-      date: "2024-01-30",
-      readTime: "9 min read",
-      category: "Technology",
-      image: "/placeholder.svg"
-    }
-  ];
 
+    const { data: blogPosts, isLoading, error } = useBlog();
+  
+    if (error){ 
+      //@ts-expect-error - error is of type AxiosError
+      return <Errorbox message={error.response?.data.error || 'An error occurred'} />;
+    }
+    const blogs = isLoading ? [] : blogPosts.data;
+  
   const categories = ["All", "Education", "Career", "Research", "Technology", "Innovation"];
 
   return (
@@ -171,35 +151,38 @@ maskImage: 'linear-gradient(to bottom, black 0%, transparent 35%, transparent 10
 
         {/* Blog Posts Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {blogPosts.map((post) => (
-            <Link key={post.id} to={`/blog/${post.id}`}>
+          {blogs.map((post) => (
+            <Link key={post.id} to={`/blogs/${post.slug}`}>
               <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow cursor-pointer">
                 <div className="h-48 bg-gray-200 relative">
                   <img
-                    src={post.image}
+                    src={post.coverImage}
                     alt={post.title}
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute top-4 left-4">
+                  {/* <div className="absolute top-4 left-4">
                     <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm">
                       {post.category}
                     </span>
-                  </div>
+                  </div> */}
                 </div>
                 <div className="p-6">
                   <h3 className="text-xl font-semibold mb-2 text-gray-900">
                     {post.title}
                   </h3>
-                  <p className="text-gray-600 mb-4 line-clamp-3">
-                    {post.excerpt}
-                  </p>
+
+                  {/*Uncomment if category is available*/}
+
+                  {/* <p className="text-gray-600 mb-4 line-clamp-3">
+                    {post.category}
+                  </p> */}
+                  
                   <div className="flex items-center justify-between text-sm text-gray-500">
                     <div className="flex items-center space-x-2">
-                      <span>{post.author}</span>
+                      <span>{post.blogAuthor.name}</span>
                       <span>•</span>
-                      <span>{post.date}</span>
+                      <span>{formatDate(post.createdAt)}</span>
                     </div>
-                    <span>{post.readTime}</span>
                   </div>
                 </div>
               </div>
