@@ -69,6 +69,8 @@ import Blog from "./pages/Blog";
 import BlogArticle from "./pages/BlogArticle";
 import BlogPost from "./pages/BlogPost";
 import CareerCounsellingBookingFlow from "./pages/CareerCounsellingBookingFlow";
+import PsychologyBookingFlow from "./pages/PsychologyBookingFlow";
+import InstitutionBookingFlow from "./pages/InstitutionBookingFlow";
 function AppLayout() {
   return (
     <>
@@ -119,7 +121,8 @@ function App() {
                 <Route path="/career-counselling-booking" element={<CareerCounsellingBookingFlow/>} />
                 <Route path="/psychology-counselling" element={<PsychologyCounselling />} />
                 <Route path="/career-counselling" element={<CareerCounselling />} />
-              
+                <Route path="/psychology-booking" element={<PsychologyBookingFlow />} />
+                <Route path="/institution-booking" element={<InstitutionBookingFlow />} />
                 <Route
                   path="/institution-pricing"
                   element={<InstitutionPricing />}
