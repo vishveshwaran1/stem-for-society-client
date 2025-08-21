@@ -1,30 +1,108 @@
-
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import Header from '@/components1/Header';
 import { Button } from '@/components1/ui/button';
 import { Input } from '@/components1/ui/input';
 import { Card } from '@/components1/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components1/ui/select';
-import { Calendar } from '@/components1/ui/calendar';
-import { ArrowLeft, Share2, Check, Shield, Leaf, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Share2, Check, Shield, Leaf, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useMutation } from '@tanstack/react-query';
+import { GenericError, GenericResponse, RazorpayOrderOptions } from '../lib/types';
+import { AxiosError } from 'axios';
+import { api } from '../lib/api';
+import { toast } from 'react-toastify';
+import { mutationErrorHandler, initializeRazorpay } from '../lib/utils';
+import { RZPY_KEYID } from '../Constants';
 
-const CareerCounsellingBookingFlow = () => {
+// Backend types
+const careerCounsellingServices = [
+  "Career choice",
+  "CV/Resume prep", 
+  "Research Proposal editing",
+  "LOR/SOP editing & preparation",
+  "Shortlisting Abroad PhD",
+  "PG/PhD abroad application guidance",
+  "Post Doc Application",
+  "Industry jobs",
+] as const;
+
+type CareerCounsellingServiceType = (typeof careerCounsellingServices)[number];
+
+type CreatePaymentResponse = {
+  orderId: string;
+  amount: number;
+};
+
+// Backend form data type (what gets sent to backend)
+type CareerCounsellingForm = {
+  firstName: string;
+  lastName?: string;
+  email: string;
+  mobile: string;
+  service?: CareerCounsellingServiceType;
+  plan?: "Basics" | "Premium";
+};
+
+// Frontend form data type (includes UI-only fields)
+interface FormData {
+  // Backend fields
+  firstName: string;
+  lastName: string;
+  email: string;
+  mobile: string;
+  service?: CareerCounsellingServiceType;
+  plan?: "Basics" | "Premium";
+  careerStage: string;
+  concerns: string;
+  
+  // Frontend-only fields (not sent to backend)
+  age: string;
+  studentId: string;
+  selectedDate: Date | null;
+  selectedTime: string;
+  switchPlanOrService: "plans" | "services";
+}
+
+// Custom hook for career counselling booking
+function useRegisterCareer() {
+  return useMutation<
+    GenericResponse<CreatePaymentResponse>,
+    AxiosError<GenericError>,
+    CareerCounsellingForm,
+    unknown
+  >({
+    mutationFn: async (data) => {
+      const response = await api().post("/enquiry/career", data);
+      return response.data;
+    },
+    onError: (err) => mutationErrorHandler(err),
+  });
+}
+
+const CareerCounsellingBookingComplete = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [formData, setFormData] = useState({
+  const { mutateAsync, isPending } = useRegisterCareer();
+  
+  const [formData, setFormData] = useState<FormData>({
+    // Backend fields
     firstName: '',
     lastName: '',
     email: '',
-    mobileNumber: '',
-    age: '',
+    mobile: '',
+    service: undefined,
+    plan: undefined,
     careerStage: '',
     concerns: '',
+    
+    // Frontend-only fields
+    age: '',
     studentId: '',
-    selectedDate: null as Date | null,
+    selectedDate: null,
     selectedTime: '4:30 PM',
+    switchPlanOrService: 'services',
   });
 
   const steps = [
@@ -60,16 +138,170 @@ const CareerCounsellingBookingFlow = () => {
   ];
 
   const nextStep = () => {
-    if (currentStep < 5) setCurrentStep(currentStep + 1);
+    // Validate current step before proceeding
+    if (currentStep === 1) {
+      if (!formData.firstName || !formData.age) {
+        toast.error("Please fill all required fields");
+        return;
+      }
+    } else if (currentStep === 2) {
+      if (!formData.email || !formData.mobile) {
+        toast.error("Please fill all required fields");
+        return;
+      }
+    } else if (currentStep === 3) {
+      if (!formData.careerStage || !formData.concerns) {
+        toast.error("Please fill all required fields");
+        return;
+      }
+      if (formData.switchPlanOrService === 'services' && !formData.service) {
+        toast.error("Please select a service");
+        return;
+      }
+      if (formData.switchPlanOrService === 'plans' && !formData.plan) {
+        toast.error("Please select a plan");
+        return;
+      }
+    }
+
+    if (currentStep === 4) {
+      handlePayment();
+    } else if (currentStep < 5) {
+      setCurrentStep(currentStep + 1);
+    }
   };
 
-  const updateFormData = (field: string, value: string) => {
+  const handleBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const updateFormData = (field: string, value: string | Date | null) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Handle calendar date selection and sync with dropdown
+  const handleDateSelect = (date: Date) => {
+    setSelectedDate(date);
+    updateFormData('selectedDate', date);
+  };
+
+  // Handle dropdown date selection and sync with calendar
+  const handleDropdownDateSelect = (value: string) => {
+    const date = new Date(value);
+    setSelectedDate(date);
+    updateFormData('selectedDate', date);
+    
+    // Update calendar month to show the selected date
+    setCurrentMonth(new Date(date.getFullYear(), date.getMonth()));
+  };
+
+  // Generate available dates for dropdown (next 30 days only)
+  const generateAvailableDates = () => {
+    const dates = [];
+    const today = new Date();
+    const oneMonthFromToday = new Date(today);
+    oneMonthFromToday.setMonth(today.getMonth() + 1);
+    
+    for (let i = 0; i < 30; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      
+      // Only include dates within one month
+      if (date <= oneMonthFromToday) {
+        dates.push({
+          value: date.toISOString().split('T')[0],
+          label: date.toLocaleDateString('en-US', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          })
+        });
+      }
+    }
+    
+    return dates;
   };
 
   const calculatePrice = () => {
     return formData.studentId ? 375 : 1500; // 75% discount for students
   };
+
+  // Payment handler using backend logic
+  const handlePayment = useCallback(async () => {
+    try {
+      const rzrpyInit = await initializeRazorpay();
+      if (!rzrpyInit) return toast.error("Unable to initialize payment!");
+
+      // Prepare data for backend (exclude frontend-only fields)
+      const backendData: CareerCounsellingForm = {
+        firstName: formData.firstName,
+        lastName: formData.lastName || undefined,
+        email: formData.email,
+        mobile: formData.mobile,
+        service: formData.switchPlanOrService === 'services' ? formData.service : undefined,
+        plan: formData.switchPlanOrService === 'plans' ? formData.plan : undefined,
+      };
+
+      const data = await mutateAsync(backendData);
+
+      console.log("🚀 ~ handlePayment ~ data:", data);
+
+      if (!data || !data.data) {
+        toast.error("Something went wrong in creating payment!");
+        return;
+      }
+      const order = data.data;
+
+      const options: RazorpayOrderOptions = {
+        key: RZPY_KEYID,
+        amount: Number(order.amount) * 100,
+        currency: "INR",
+        name: "Stem for Society",
+        description: formData.service
+          ? `Purchase ${formData.service} service`
+          : "Premium plan purchase",
+        image: "https://stem-4-society.netlify.app/logo-01.png",
+        order_id: order.orderId,
+        prefill: {
+          name: formData.firstName + " " + (formData.lastName ?? ""),
+          email: formData.email,
+          contact: formData.mobile,
+        },
+        async handler() {
+          toast.success(
+            "Payment was made successfully! We will verify the payment and will be in touch with you shortly",
+            { autoClose: false, draggable: false },
+          );
+          setCurrentStep(5); // Move to success step
+        },
+      };
+
+      // @ts-expect-error dhe chi pae
+      const rzp: RazorpayInstance = new Razorpay(options);
+
+      rzp.on("payment.failed", (res) => {
+        console.log("Failure:", res);
+        toast.error("Payment failed! Reason:\n" + res.error.description, {
+          autoClose: false,
+          closeOnClick: false,
+        });
+        toast.error(
+          "Please note Order ID: " +
+            res.error.metadata.order_id +
+            "\n Payment ID: " +
+            res.error.metadata.payment_id,
+          { autoClose: false, closeOnClick: false },
+        );
+      });
+
+      rzp.open();
+    } catch {
+      toast.error("Something went wrong in the payment process");
+    }
+  }, [formData, mutateAsync]);
 
   const renderStepIndicator = () => (
     <div className="flex items-center justify-center mb-8">
@@ -100,10 +332,11 @@ const CareerCounsellingBookingFlow = () => {
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
-          placeholder="First Name"
+          placeholder="First Name *"
           value={formData.firstName}
           onChange={(e) => updateFormData('firstName', e.target.value)}
           className="bg-gray-100 border-0 h-12"
+          required
         />
         <Input
           placeholder="Last Name"
@@ -113,10 +346,11 @@ const CareerCounsellingBookingFlow = () => {
         />
       </div>
       <Input
-        placeholder="Age"
+        placeholder="Age *"
         value={formData.age}
         onChange={(e) => updateFormData('age', e.target.value)}
         className="bg-gray-100 border-0 h-12"
+        required
       />
     </div>
   );
@@ -129,17 +363,19 @@ const CareerCounsellingBookingFlow = () => {
       </div>
       
       <Input
-        placeholder="Email"
+        placeholder="Email *"
         type="email"
         value={formData.email}
         onChange={(e) => updateFormData('email', e.target.value)}
         className="bg-gray-100 border-0 h-12"
+        required
       />
       <Input
-        placeholder="Mobile Number"
-        value={formData.mobileNumber}
-        onChange={(e) => updateFormData('mobileNumber', e.target.value)}
+        placeholder="Mobile Number *"
+        value={formData.mobile}
+        onChange={(e) => updateFormData('mobile', e.target.value)}
         className="bg-gray-100 border-0 h-12"
+        required
       />
       <Input
         placeholder="Student ID (Optional - for discount)"
@@ -165,7 +401,7 @@ const CareerCounsellingBookingFlow = () => {
       
       <Select value={formData.careerStage} onValueChange={(value) => updateFormData('careerStage', value)}>
         <SelectTrigger className="bg-gray-100 border-0 h-12">
-          <SelectValue placeholder="Select your career stage" />
+          <SelectValue placeholder="Select your career stage *" />
         </SelectTrigger>
         <SelectContent>
           {careerStages.map((stage) => (
@@ -176,7 +412,7 @@ const CareerCounsellingBookingFlow = () => {
 
       <Select value={formData.concerns} onValueChange={(value) => updateFormData('concerns', value)}>
         <SelectTrigger className="bg-gray-100 border-0 h-12">
-          <SelectValue placeholder="What would you like guidance on?" />
+          <SelectValue placeholder="What would you like guidance on? *" />
         </SelectTrigger>
         <SelectContent>
           {concerns.map((concern) => (
@@ -184,6 +420,69 @@ const CareerCounsellingBookingFlow = () => {
           ))}
         </SelectContent>
       </Select>
+
+      {/* Service/Plan Selection */}
+      <div className="space-y-4">
+        <div className="flex gap-4">
+          <Button
+            variant={formData.switchPlanOrService === 'services' ? 'default' : 'outline'}
+            onClick={() => {
+              setFormData(prev => ({
+                ...prev,
+                switchPlanOrService: 'services',
+                plan: undefined
+              }));
+            }}
+            className="flex-1"
+          >
+            Choose Service
+          </Button>
+          <Button
+            variant={formData.switchPlanOrService === 'plans' ? 'default' : 'outline'}
+            onClick={() => {
+              setFormData(prev => ({
+                ...prev,
+                switchPlanOrService: 'plans',
+                service: undefined
+              }));
+            }}
+            className="flex-1"
+          >
+            Choose Plans
+          </Button>
+        </div>
+
+        {formData.switchPlanOrService === 'services' && (
+          <Select 
+            value={formData.service} 
+            onValueChange={(value) => updateFormData('service', value as CareerCounsellingServiceType)}
+          >
+            <SelectTrigger className="bg-gray-100 border-0 h-12">
+              <SelectValue placeholder="Choose from a list of services *" />
+            </SelectTrigger>
+            <SelectContent>
+              {careerCounsellingServices.map((service) => (
+                <SelectItem key={service} value={service}>{service}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {formData.switchPlanOrService === 'plans' && (
+          <Select 
+            value={formData.plan} 
+            onValueChange={(value) => updateFormData('plan', value as "Basics" | "Premium")}
+          >
+            <SelectTrigger className="bg-gray-100 border-0 h-12">
+              <SelectValue placeholder="Choose from our plans *" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Basics">Basics</SelectItem>
+              <SelectItem value="Premium">Premium</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+      </div>
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div className="text-3xl font-bold text-blue-600 mb-2">₹ {calculatePrice().toLocaleString()}.00</div>
@@ -195,110 +494,142 @@ const CareerCounsellingBookingFlow = () => {
     </div>
   );
 
-  const renderScheduleSession = () => (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      {/* Calendar */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
-            className="p-2"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <h3 className="font-medium">
-            {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-          </h3>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
-            className="p-2"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
+  const renderScheduleSession = () => {
+    const today = new Date();
+    const oneMonthFromToday = new Date(today);
+    oneMonthFromToday.setMonth(today.getMonth() + 1);
 
-        <div className="grid grid-cols-7 gap-1 mb-4 text-center text-sm text-gray-500">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-            <div key={day} className="p-2">{day}</div>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-7 gap-1">
-          {Array.from({ length: 35 }, (_, i) => {
-            const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), i - 6);
-            const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
-            const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
-            const isToday = date.toDateString() === new Date().toDateString();
-            
-            return (
-              <button
-                key={i}
-                onClick={() => isCurrentMonth && setSelectedDate(date)}
-                className={`p-2 text-sm rounded-lg transition-colors ${
-                  !isCurrentMonth 
-                    ? 'text-gray-300 cursor-not-allowed'
-                    : isSelected
-                      ? 'bg-blue-500 text-white'
-                      : isToday
-                        ? 'bg-blue-100 text-blue-600'
-                        : 'hover:bg-gray-100'
-                }`}
-                disabled={!isCurrentMonth}
-              >
-                {date.getDate()}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Right side */}
-      <div className="space-y-6">
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Calendar */}
         <div>
-          <Select onValueChange={(value) => setSelectedDate(new Date(value))}>
-            <SelectTrigger className="w-full h-12 bg-gray-100 border-0 text-gray-500">
-              <SelectValue placeholder="Select Date" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="2023-09-15">September 15, 2023</SelectItem>
-              <SelectItem value="2023-09-16">September 16, 2023</SelectItem>
-              <SelectItem value="2023-09-17">September 17, 2023</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+          <div className="flex items-center justify-between mb-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
+              className="p-2"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <h3 className="font-medium">
+              {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            </h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
+              className="p-2"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
 
-        <div>
-          <h4 className="font-medium text-gray-900 mb-4">Available Time</h4>
-          <div className="grid grid-cols-2 gap-3">
-            {availableTimes.map((time) => (
-              <button
-                key={time}
-                onClick={() => updateFormData('selectedTime', time)}
-                className={`p-3 text-sm rounded-lg border transition-colors ${
-                  formData.selectedTime === time
-                    ? 'bg-blue-500 text-white border-blue-500'
-                    : 'bg-gray-100 text-gray-700 border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                {time}
-              </button>
+          <div className="grid grid-cols-7 gap-1 mb-4 text-center text-sm text-gray-500">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+              <div key={day} className="p-2">{day}</div>
             ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-1">
+            {Array.from({ length: 35 }, (_, i) => {
+              const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), i - 6);
+              const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
+              const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
+              const isToday = date.toDateString() === new Date().toDateString();
+              const isPastDate = date < new Date(new Date().setHours(0, 0, 0, 0));
+              const isAfterOneMonth = date > oneMonthFromToday;
+              const isDisabled = !isCurrentMonth || isPastDate || isAfterOneMonth;
+              
+              return (
+                <button
+                  key={i}
+                  onClick={() => {
+                    if (!isDisabled) {
+                      handleDateSelect(date);
+                    }
+                  }}
+                  className={`p-2 text-sm rounded-lg transition-colors ${
+                    isDisabled
+                      ? 'text-gray-300 cursor-not-allowed'
+                      : isSelected
+                        ? 'bg-blue-500 text-white'
+                        : isToday
+                          ? 'bg-blue-100 text-blue-600'
+                          : 'hover:bg-gray-100'
+                  }`}
+                  disabled={isDisabled}
+                >
+                  {date.getDate()}
+                </button>
+              );
+            })}
+          </div>
+          
+          <div className="mt-4 text-xs text-gray-500 text-center">
+            Available dates: Today to {oneMonthFromToday.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
           </div>
         </div>
 
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start space-x-3">
-          <Shield className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-          <span className="text-yellow-800 text-sm">
-            After payment, your session will be booked and a Meet link will be shared instantly.
-          </span>
+        {/* Right side */}
+        <div className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Select Date
+            </label>
+            <Select 
+              value={selectedDate ? selectedDate.toISOString().split('T')[0] : ''} 
+              onValueChange={handleDropdownDateSelect}
+            >
+              <SelectTrigger className="w-full h-12 bg-gray-100 border-0 text-gray-700">
+                <SelectValue placeholder="Select Date" />
+              </SelectTrigger>
+              <SelectContent>
+                {generateAvailableDates().map((date) => (
+                  <SelectItem key={date.value} value={date.value}>
+                    {date.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <h4 className="font-medium text-gray-900 mb-4">Available Time</h4>
+            <div className="grid grid-cols-2 gap-3">
+              {availableTimes.map((time) => (
+                <button
+                  key={time}
+                  onClick={() => updateFormData('selectedTime', time)}
+                  className={`p-3 text-sm rounded-lg border transition-colors ${
+                    formData.selectedTime === time
+                      ? 'bg-blue-500 text-white border-blue-500'
+                      : 'bg-gray-100 text-gray-700 border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  {time}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start space-x-3">
+            <Shield className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+            <span className="text-yellow-800 text-sm">
+              After payment, your session will be booked and a Meet link will be shared instantly.
+            </span>
+          </div>
+
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start space-x-3">
+            <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+            <span className="text-yellow-800 text-sm">
+              We will be contacting you within 48 hrs of payment confirmation.
+            </span>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderSuccess = () => (
     <div className="text-center space-y-8">
@@ -315,8 +646,12 @@ const CareerCounsellingBookingFlow = () => {
       </div>
       
       <div className="flex justify-center space-x-4">
-        <Button variant="outline" className="px-8 h-12">
-          Add to Calendar
+        <Button 
+          variant="outline" 
+          className="px-8 h-12"
+          onClick={() => window.location.href = '/'}
+        >
+          Back to Home
         </Button>
         <Button className="bg-[#0389FF] hover:bg-[#0389FF]/90 text-white px-8 h-12">
           DOWNLOAD CONFIRMATION
@@ -398,23 +733,28 @@ const CareerCounsellingBookingFlow = () => {
           {currentStep === 5 && renderSuccess()}
         </Card>
 
+        {/* Updated button section with Back and Continue buttons */}
         {currentStep <= 4 && (
-          <div className="flex justify-end mt-8">
-            {currentStep === 4 ? (
-              <Button 
-                onClick={nextStep}
-                className="bg-[#0389FF] hover:bg-[#0389FF]/90 text-white px-8 py-3 text-lg font-semibold h-12"
-              >
-                PROCEED TO PAYMENT
-              </Button>
-            ) : (
-              <Button 
-                onClick={nextStep}
-                className="bg-[#0389FF] hover:bg-[#0389FF]/90 text-white px-8 py-3 text-lg font-semibold h-12"
-              >
-                CONTINUE
-              </Button>
-            )}
+          <div className="flex justify-between items-center mt-8">
+            {/* Back Button */}
+            <Button 
+              onClick={handleBack}
+              variant="outline"
+              className="border-gray-300 text-gray-700 hover:bg-gray-50 px-8 py-3 text-lg font-semibold h-12"
+              disabled={currentStep === 1}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              BACK
+            </Button>
+
+            {/* Continue/Payment Button */}
+            <Button 
+              onClick={nextStep}
+              className="bg-[#0389FF] hover:bg-[#0389FF]/90 text-white px-8 py-3 text-lg font-semibold h-12"
+              disabled={isPending}
+            >
+              {currentStep === 4 ? (isPending ? 'PROCESSING...' : 'PROCEED TO PAYMENT') : 'CONTINUE'}
+            </Button>
           </div>
         )}
       </div>
@@ -442,4 +782,4 @@ const CareerCounsellingBookingFlow = () => {
   );
 };
 
-export default CareerCounsellingBookingFlow;
+export default CareerCounsellingBookingComplete;
