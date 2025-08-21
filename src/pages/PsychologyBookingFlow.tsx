@@ -296,7 +296,7 @@ maskImage: 'linear-gradient(to bottom, black 0%, transparent 35%, transparent 10
        <div className="text-center mb-8">
           <h1 className="text-xl font-medium text-gray-600 mb-2">Book your Session</h1>
           <h2 className="text-4xl font-bold text-gray-900">
-            <span className="text-teal-500">Psychology</span> Counselling
+            <span className="text-teal-500">Mental</span> WellBeing
           </h2>
         </div>
   </div>

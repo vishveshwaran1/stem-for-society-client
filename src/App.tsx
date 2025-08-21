@@ -121,7 +121,7 @@ function App() {
                 <Route path="/career-counselling-booking" element={<CareerCounsellingBookingFlow/>} />
                 <Route path="/psychology-counselling" element={<PsychologyCounselling />} />
                 <Route path="/career-counselling" element={<CareerCounselling />} />
-                <Route path="/psychology-booking" element={<PsychologyBookingFlow />} />
+                <Route path="/mental-wellbeing" element={<PsychologyBookingFlow />} />
                 <Route path="/institution-booking" element={<InstitutionBookingFlow />} />
                 <Route
                   path="/institution-pricing"
