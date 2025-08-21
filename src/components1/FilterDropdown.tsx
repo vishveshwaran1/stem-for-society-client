@@ -45,7 +45,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({ title, options, onOptio
       </PopoverTrigger>
       
       <PopoverContent 
-        className="w-56 p-0 bg-white border border-gray-200 shadow-md rounded-md" 
+        className="w-56 p-0 !bg-white border border-gray-200 shadow-md rounded-md" 
         align="start"
         sideOffset={4}
       >
