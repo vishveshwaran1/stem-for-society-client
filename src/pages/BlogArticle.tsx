@@ -31,6 +31,7 @@ export type BlogContentType = {
   references?: string[];
   title: string;
   content: string;
+  category: string; // Add category field
 };
 
 type BlogDetailsForm = BlogContentType & AuthorDetails & { coverImage: File };
@@ -99,6 +100,7 @@ function useCreateBlog() {
       formData.append("content", data.content);
       formData.append("references", JSON.stringify(data.references ?? []));
       formData.append("title", data.title);
+      formData.append("category", data.category);
 
       const response = await api().post("/blogs", formData, {
         headers: {
@@ -147,6 +149,7 @@ const BlogCreateContent = () => {
     title: blogContent?.title || '',
     content: blogContent?.content || '',
     references: blogContent?.references || [],
+    category: blogContent?.category || '', // Add category field
     // Blog Details
     coverPhoto: null,
   });
@@ -191,9 +194,9 @@ const BlogCreateContent = () => {
       nextStep();
     } else if (currentStep === 2) {
       // Validate blog content
-      if (!formData.title || !formData.content || 
+      if (!formData.title || !formData.content || !formData.category ||
           (formData.content.replace(/<(.|\n)*?>/g, "").trim() === "" && !formData.content.includes("<img"))) {
-        toast.error("Please provide title and content");
+        toast.error("Please provide title, category, and content");
         return;
       }
       
@@ -202,6 +205,7 @@ const BlogCreateContent = () => {
         title: formData.title,
         content: formData.content,
         references: formData.references,
+        category: formData.category, // Include category
       };
       queryClient.setQueryData(["blog", "content"], blogContentData);
       nextStep();
@@ -236,6 +240,7 @@ const BlogCreateContent = () => {
       title: formData.title,
       content: formData.content,
       references: formData.references,
+      category: formData.category, // Include category
       coverImage: formData.coverPhoto,
     };
 
@@ -343,7 +348,7 @@ const BlogCreateContent = () => {
           <div className="space-y-6">
             <div className="text-center">
               <h3 className="text-xl font-semibold mb-4">Article Content</h3>
-              <p className="text-gray-600">Add your article content, title, and abstract</p>
+              <p className="text-gray-600">Add your article content, title, category, and abstract</p>
             </div>
             <div className="space-y-4">
               <Input
@@ -352,6 +357,23 @@ const BlogCreateContent = () => {
                 onChange={(e) => handleInputChange('title', e.target.value)}
                 className="bg-gray-100 border-0 rounded-lg p-4 h-14"
               />
+              
+              <Select onValueChange={(value) => handleInputChange('category', value)} value={formData.category}>
+                <SelectTrigger className="bg-gray-100 border-0 rounded-lg p-4 h-14">
+                  <SelectValue placeholder="Select Category" />
+                </SelectTrigger>
+                <SelectContent
+                  style={{ zIndex: 50, position: 'relative', backgroundColor: 'white' }}
+                >
+                  <SelectItem value="Technology">Technology</SelectItem>
+                  <SelectItem value="Research">Research</SelectItem>
+                  <SelectItem value="Innovation">Innovation</SelectItem>
+                  <SelectItem value="Education">Education</SelectItem>
+                  <SelectItem value="Career">Career</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+
               <div className="bg-gray-100 rounded-lg p-4 min-h-[300px]">
                 <RichTextEditorNew
                   value={formData.content}
