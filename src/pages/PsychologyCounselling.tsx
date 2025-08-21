@@ -64,7 +64,7 @@ maskImage: 'linear-gradient(to bottom, black 0%, transparent 35%, transparent 10
       </div>
     </div>
       <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-6">Psychology Counselling</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-6">Mental Wellbeing</h1>
         </div>
   </div>
 </div>
@@ -113,7 +113,7 @@ maskImage: 'linear-gradient(to bottom, black 0%, transparent 35%, transparent 10
             
             <div className="mb-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                Psychology Counselling for Students
+                Mental Wellbeing for Students
               </h2>
               <p className="text-gray-600">
                 Talk to trained experts about your mental health, 

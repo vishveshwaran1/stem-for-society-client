@@ -97,10 +97,10 @@ const Header = () => {
                 <MenubarContent className="bg-white backdrop-blur-md shadow-xl rounded-3xl p-3 min-w-[240px] z-50 mt-2 border-0">
                   <MenubarItem asChild>
                     <Link 
-                      to="/psychology-counselling" 
+                      to="/mental-wellbeing" 
                       className="block px-5 py-3 text-gray-700 hover:bg-gray-100 hover:text-gray-900 rounded-2xl transition-all duration-200 cursor-pointer font-medium"
                     >
-                      Psychology Counselling
+                     Mental WellBeing
                     </Link>
                   </MenubarItem>
                   <MenubarItem asChild>
