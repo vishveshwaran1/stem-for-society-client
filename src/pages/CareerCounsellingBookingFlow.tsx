@@ -1,5 +1,6 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import Header from '@/components1/Header';
+import Footer from '@/components1/Footer';
 import { Button } from '@/components1/ui/button';
 import { Input } from '@/components1/ui/input';
 import { Card } from '@/components1/ui/card';
@@ -8,13 +9,14 @@ import { ArrowLeft, Share2, Check, Shield, Leaf, ChevronLeft, ChevronRight, Aler
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useMutation } from '@tanstack/react-query';
+import { useShare } from '@/hooks/useShare';
+import { SharePopup } from '@/components1/ui/SharePopup';
 import { GenericError, GenericResponse, RazorpayOrderOptions } from '../lib/types';
 import { AxiosError } from 'axios';
 import { api } from '../lib/api';
 import { toast } from 'react-toastify';
 import { mutationErrorHandler, initializeRazorpay } from '../lib/utils';
 import { RZPY_KEYID } from '../Constants';
-import Footer from '@/components1/Footer';
 
 // Backend types
 const careerCounsellingServices = [
@@ -83,6 +85,8 @@ function useRegisterCareer() {
 
 const CareerCounsellingBookingFlow = () => {
   const [currentStep, setCurrentStep] = useState(1);
+  const [selectedPlan, setSelectedPlan] = useState('');
+  const { isShowing, handleShare } = useShare();
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const { mutateAsync, isPending } = useRegisterCareer();
@@ -694,11 +698,12 @@ const CareerCounsellingBookingFlow = () => {
                 <Button
                   variant="outline"
                   size="sm"
+                  onClick={handleShare}
                   className="flex items-center space-x-2 text-white border-[#00549FB8] rounded-full px-4 hover:bg-[#00549FB8]/90"
                   style={{ backgroundColor: '#00549FB8' }}
                 >
-                  <ArrowLeft className="h-4 w-4" />
-                  <span>Back</span>
+                  <Share2 className="h-4 w-4" />
+                  <span>Share</span>
                 </Button>
               </Link>
 
@@ -708,8 +713,8 @@ const CareerCounsellingBookingFlow = () => {
                 className="flex items-center space-x-2 text-white border-[#00549FB8] rounded-full px-4 hover:bg-[#00549FB8]/90"
                 style={{ backgroundColor: '#00549FB8' }}
               >
-                <Share2 className="h-4 w-4" />
-                <span>Share</span>
+                <ArrowLeft className="h-4 w-4" />
+                <span>Back</span>
               </Button>
             </div>
           </div>
@@ -779,7 +784,8 @@ const CareerCounsellingBookingFlow = () => {
           </div>
         </div>
       </footer>
-
+      <Footer />
+      <SharePopup isVisible={isShowing} />
     </div>
   );
 };

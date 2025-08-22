@@ -6,8 +6,11 @@ import GridBackground from '@/components1/GridBackground';
 import { Button } from '@/components1/ui/button';
 import { ArrowLeft, Share2, Shield, Leaf } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useShare } from '@/hooks/useShare';
+import { SharePopup } from '@/components1/ui/SharePopup';
 
 const PsychologyCounselling = () => {
+  const { isShowing, handleShare } = useShare();
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="relative overflow-hidden min-h-screen"style={{ height: '100%', minHeight: '100%' }}
@@ -55,6 +58,7 @@ maskImage: 'linear-gradient(to bottom, black 0%, transparent 35%, transparent 10
         <Button
           variant="outline"
           size="sm"
+          onClick={handleShare}
           className="flex items-center space-x-2 text-white border-[#00549FB8] rounded-full px-4 hover:bg-[#00549FB8]/90"
           style={{ backgroundColor: '#00549FB8' }}
         >
@@ -149,6 +153,7 @@ maskImage: 'linear-gradient(to bottom, black 0%, transparent 35%, transparent 10
       </div>
 
       <Footer />
+      <SharePopup isVisible={isShowing} />
     </div>
   );
 };

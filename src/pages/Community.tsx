@@ -5,8 +5,11 @@ import GridBackground from '@/components1/GridBackground';
 import { Button } from '@/components1/ui/button';
 import { ArrowLeft, Share2, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useShare } from '@/hooks/useShare';
+import { SharePopup } from '@/components1/ui/SharePopup';
 
 const Community = () => {
+  const { isShowing, handleShare } = useShare();
   return (
     <div className="min-h-screen bg-gray-50">
       <GridBackground>
@@ -22,7 +25,12 @@ const Community = () => {
                   <span>Back</span>
                 </Button>
               </Link>
-              <Button variant="outline" size="sm" className="flex items-center space-x-2 bg-[#0389FF] text-white border-[#0389FF] rounded-full px-4 hover:bg-[#0389FF]/90">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleShare}
+                className="flex items-center space-x-2 bg-[#0389FF] text-white border-[#0389FF] rounded-full px-4 hover:bg-[#0389FF]/90"
+              >
                 <Share2 className="h-4 w-4" />
                 <span>Share</span>
               </Button>
@@ -104,6 +112,7 @@ const Community = () => {
       </div>
 
       <Footer />
+      <SharePopup isVisible={isShowing} />
     </div>
   );
 };

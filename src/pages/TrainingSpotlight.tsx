@@ -8,6 +8,8 @@ import { FaLocationDot } from "react-icons/fa6";
 import { MdShare } from "react-icons/md";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
+import { useShare } from "@/hooks/useShare";
+import { SharePopup } from "@/components1/ui/SharePopup";
 import Errorbox from "../components/Errorbox";
 import Loading from "../components/Loading";
 import { RZPY_KEYID } from "../Constants";
@@ -83,6 +85,8 @@ function useSubmitFeedback(id: string) {
 
 function TrainingSpotlight() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { isShowing, handleShare } = useShare();
   const { data, isLoading, error } = useTraining(id);
   const { user } = useUser();
   const { mutateAsync, isPending } = useEnroll(id);
@@ -192,17 +196,7 @@ function TrainingSpotlight() {
               <Button
                 radius={999}
                 variant="outline"
-                onClick={() => {
-                  const currentUrl = window.location.href;
-                  navigator.clipboard
-                    .writeText(currentUrl)
-                    .then(() => {
-                      toast.info("Link copied to clipboard!");
-                    })
-                    .catch((err) => {
-                      console.error("Failed to copy: ", err);
-                    });
-                }}
+                onClick={handleShare}
               >
                 <MdShare />
                 Share
@@ -426,6 +420,7 @@ function TrainingSpotlight() {
           </>
         )}
       </div>
+      <SharePopup isVisible={isShowing} />
     </div>
   );
 }

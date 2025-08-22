@@ -5,9 +5,12 @@ import { Button } from '@/components1/ui/button';
 import { ArrowLeft, Share2, Calendar, MapPin, Clock, Award, User, Building2, BookOpen, CheckCircle } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useShare } from '@/hooks/useShare';
+import { SharePopup } from '@/components1/ui/SharePopup';
 
 const CourseDetail = () => {
   const { id } = useParams();
+  const { isShowing, handleShare } = useShare();
   
   const course = {
     id: id || '1',
@@ -72,6 +75,7 @@ const CourseDetail = () => {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={handleShare}
                 className="flex items-center space-x-2 bg-[#0389FF] text-white border-[#0389FF] rounded-full px-4 hover:bg-[#0389FF]/90"
               >
                 <Share2 className="h-4 w-4" />
@@ -304,6 +308,7 @@ const CourseDetail = () => {
       </div>
 
       <Footer />
+      <SharePopup isVisible={isShowing} />
     </div>
   );
 };

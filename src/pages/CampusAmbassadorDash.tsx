@@ -4,22 +4,12 @@ import Footer from '@/components1/Footer';
 import { Button } from '@/components1/ui/button';
 import { ArrowLeft, Share2, CheckCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useShare } from '@/hooks/useShare';
+import { SharePopup } from '@/components1/ui/SharePopup';
 
 const CampusAmbassador = () => {
   const [copied, setCopied] = useState(false);
-
-  // Function to copy current page URL
-  const handleShare = () => {
-    const currentUrl = window.location.href;
-    navigator.clipboard.writeText(currentUrl)
-      .then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000); // Hide after 2s
-      })
-      .catch(() => {
-        console.error("Failed to copy link");
-      });
-  };
+  const { isShowing, handleShare } = useShare();
 
   return (
     <div className="min-h-screen bg-gray-50 relative">
@@ -169,6 +159,7 @@ const CampusAmbassador = () => {
           }
         `}
       </style>
+      <SharePopup isVisible={isShowing} />
     </div>
   );
 };
