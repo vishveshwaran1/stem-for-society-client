@@ -78,9 +78,7 @@ function useBookPsychologySession() {
       return response.data;
     },
     onError: (err) => mutationErrorHandler(err),
-    onSuccess: (data) => {
-      toast.success(data.message);
-    },
+    // REMOVE onSuccess from here!
   });
 }
 
@@ -242,8 +240,13 @@ const PsychologyBookingFlow = () => {
       idCard: formData.idCard || undefined,
     };
 
-    bookSession(backendData);
-    setCurrentStep(5); // Move to success step
+    bookSession(backendData, {
+      onSuccess: (data) => {
+        toast.success(data.message);
+        setCurrentStep(5); // <-- Move here!
+      },
+      onError: (err) => mutationErrorHandler(err),
+    });
   };
 
   const renderStepIndicator = () => (

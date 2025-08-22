@@ -181,7 +181,7 @@ function TrainingSpotlight() {
   return (
     <div className="w-full my-8 h-full flex justify-center">
       <div className="lg:w-[80%] lg:p-0 p-3 mb-10 flex flex-col gap-4">
-        <Link to={"/training"}>
+        <Link to={"/courses"}>
           <Button radius={999}>
             <ChevronLeft size={16} />
             Back

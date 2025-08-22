@@ -167,18 +167,26 @@ const Header = () => {
         <CircleUserIcon className="h-5 w-5" />
       </div>
       <span className="font-medium">{user.user.firstName}</span>
+      <ChevronDown className="h-4 w-4" />
     </button>
 
     {dropdownOpen && (
-      <div className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg border">
+      <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-50">
         <Link
-          to="/"
+          to="/training"
           className="block px-4 py-2 hover:bg-gray-100"
+          onClick={() => {
+            setDropdownOpen(false);
+            setFilterByMe(true); // same as old header
+          }}
         >
-          Home
+          My trainings
         </Link>
         <button
-          onClick={signOut}
+          onClick={() => {
+            setDropdownOpen(false);
+            signOut();
+          }}
           className="w-full text-left px-4 py-2 text-red-500 hover:bg-gray-100"
         >
           Logout
