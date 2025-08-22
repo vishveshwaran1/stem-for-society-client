@@ -212,7 +212,7 @@ maskImage: 'linear-gradient(to bottom, black 0%, transparent 35%, transparent 10
             />
           </div>
           <Link to="/blog-article">
-            <Button className="bg-blue-600 hover:bg-blue-700 h-12 px-8 rounded-full">
+            <Button className="bg-blue-600 hover:bg-blue-700 h-12 px-8 rounded-full text-white">
               <Plus className="w-5 h-5 mr-2" />
               Create Article
             </Button>
