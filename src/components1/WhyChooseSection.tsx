@@ -41,22 +41,23 @@ const WhyChooseSection = () => {
       <div className="w-full max-w-none px-0">
         <div className="grid md:grid-cols-2 items-center relative min-h-[200px] md:min-h-[220px]">
           {/* Background image on the left side centered */}
-          <div className="relative flex items-center justify-center h-full">
-            <div 
-              className="w-64 h-64 md:w-72 md:h-72 opacity-20 bg-center bg-no-repeat bg-contain"
-              style={{ 
-                backgroundImage: `url("/lovable-uploads/59d4420d-7b78-4de5-bb75-88bf67aad1b0.png")`
-              }}
-            ></div>
-            
-            {/* Title overlaid on the background - left aligned */}
-            <div className="absolute inset-0 flex flex-col justify-center px-4 md:px-8">
-              <h2 className="text-lg md:text-xl lg:text-2xl xl:text-3xl font-bold leading-tight text-left">
-                Why Choose<br/>
-                <span className="text-blue-600">Stem for Society</span> ?
-              </h2>
-            </div>
-          </div>
+       <div className="relative flex items-center justify-center h-full">
+  <div 
+    className="w-64 h-64 md:w-72 md:h-72 opacity-20 bg-center bg-no-repeat bg-contain"
+    style={{ 
+      backgroundImage: `url("/lovable-uploads/4d9d066b-41c7-4f9e-8821-af3a85d56f80.png")`
+    }}
+  ></div>
+  
+  {/* Title overlaid on the background - centered */}
+  <div className="absolute inset-0 flex flex-col justify-center items-center px-4 md:px-8">
+    <h2 className="text-lg md:text-xl lg:text-2xl xl:text-3xl font-bold leading-tight text-center">
+      Why Choose<br/>
+      <span className="text-blue-600">Stem for Society</span> ?
+    </h2>
+  </div>
+</div>
+
 
           {/* Right side - Features */}
           <div className="relative z-10 space-y-2 md:space-y-3 px-4 md:px-6 py-4 md:py-0">

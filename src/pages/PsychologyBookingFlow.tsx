@@ -225,7 +225,7 @@ const PsychologyBookingFlow = () => {
   };
 
   const calculatePrice = () => {
-    return formData.idCard ? 500 : 2000; // 75% discount for students
+    return formData.idCard ? 1000 : 2000; // 75% discount for students
   };
 
   const handleSubmit = () => {
@@ -345,7 +345,7 @@ const PsychologyBookingFlow = () => {
       
       <div className="space-y-4">
         <label className="block text-sm font-medium text-gray-700">
-          Student ID Card (Optional - for 75% discount)
+          Student ID Card (Optional - for 50% discount)
         </label>
         <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center bg-gray-50 hover:bg-gray-100 transition-colors">
           <div className="mb-4">
@@ -396,8 +396,8 @@ const PsychologyBookingFlow = () => {
         <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start space-x-3">
           <Leaf className="h-5 w-5 text-green-600 mt-0.5" />
           <div className="text-green-800 text-sm">
-            <p className="font-medium">75% fee waived off with valid student ID!</p>
-            <p className="text-xs mt-1">Fee reduced from ₹2,000 to ₹500</p>
+            <p className="font-medium">50% fee waived off with valid student ID!</p>
+            <p className="text-xs mt-1">Fee reduced from ₹2,000 to ₹1,000</p>
           </div>
         </div>
       )}
