@@ -15,9 +15,9 @@ const ExploreProgramDashboard = () => {
     },
     {
       category: "Students, Researchers, Young Professionals",
-      title: "Psychology Counselling",
+      title: "Mental Wellbeings Counselling",
       description: "Access personalized mental wellness support to thrive in both studies and life.",
-      route: "/psychology-counselling"
+      route: "/mental-wellbeing"
     },
     {
       category: "Institution Faculty, Educators, Trainers",
