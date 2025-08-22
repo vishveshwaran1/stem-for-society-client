@@ -1,77 +1,87 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Header from '@/components1/Header';
 import Footer from '@/components1/Footer';
-import GridBackground from '@/components1/GridBackground';
 import { Button } from '@/components1/ui/button';
 import { ArrowLeft, Share2, CheckCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const CampusAmbassador = () => {
+  const [copied, setCopied] = useState(false);
+
+  // Function to copy current page URL
+  const handleShare = () => {
+    const currentUrl = window.location.href;
+    navigator.clipboard.writeText(currentUrl)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000); // Hide after 2s
+      })
+      .catch(() => {
+        console.error("Failed to copy link");
+      });
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
-              <div className="relative overflow-hidden min-h-screen"style={{ height: '100%', minHeight: '100%' }}
->
-  {/* Grid background */}
-  <div 
-    className="absolute inset-0 opacity-50 pointer-events-none z-0"
-    style={{
-      minHeight: '100vh',
-      backgroundImage: `
-        linear-gradient(rgba(107,114,128,0.5) 2px, transparent 2px),
-        linear-gradient(90deg, rgba(107,114,128,0.5) 2px, transparent 2px)
-      `,
-      backgroundSize: '100px 100px',
-     WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 35%, transparent 100%)',
-maskImage: 'linear-gradient(to bottom, black 0%, transparent 35%, transparent 100%)',
+    <div className="min-h-screen bg-gray-50 relative">
+      <div className="relative overflow-hidden min-h-screen" style={{ height: '100%', minHeight: '100%' }}>
+        {/* Grid background */}
+        <div 
+          className="absolute inset-0 opacity-50 pointer-events-none z-0"
+          style={{
+            minHeight: '100vh',
+            backgroundImage: `
+              linear-gradient(rgba(107,114,128,0.5) 2px, transparent 2px),
+              linear-gradient(90deg, rgba(107,114,128,0.5) 2px, transparent 2px)
+            `,
+            backgroundSize: '100px 100px',
+            WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 35%, transparent 100%)',
+            maskImage: 'linear-gradient(to bottom, black 0%, transparent 35%, transparent 100%)',
+            WebkitMaskRepeat: 'no-repeat',
+            maskRepeat: 'no-repeat',
+            WebkitMaskSize: '100% 100%',
+            maskSize: '100% 100%',
+          }}
+        />
 
+        {/* Content above grid */}
+        <div className="relative z-10">
+          <Header />
 
-      WebkitMaskRepeat: 'no-repeat',
-      maskRepeat: 'no-repeat',
-      WebkitMaskSize: '100% 100%',
-      maskSize: '100% 100%',
-    }}
-  />
+          {/* Navigation Bar */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex items-center justify-between">
+              <Link to="/">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center space-x-2 bg-[#0389FF] text-white border-[#0389FF] rounded-full px-4 hover:bg-[#0389FF]/90"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span>Back</span>
+                </Button>
+              </Link>
 
-  {/* Content above grid */}
-  <div className="relative z-10">
-    <Header />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleShare}
+                className="flex items-center space-x-2 bg-[#0389FF] text-white border-[#0389FF] rounded-full px-4 hover:bg-[#0389FF]/90"
+              >
+                <Share2 className="h-4 w-4" />
+                <span>Share</span>
+              </Button>
+            </div>
+          </div>
 
-    {/* Navigation Bar */}
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-      <div className="flex items-center justify-between">
-        <Link to="/">
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center space-x-2 bg-[#0389FF] text-white border-[#0389FF] rounded-full px-4 hover:bg-[#0389FF]/90"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Back</span>
-          </Button>
-        </Link>
-
-        <Button
-          variant="outline"
-          size="sm"
-          className="flex items-center space-x-2 bg-[#0389FF] text-white border-[#0389FF] rounded-full px-4 hover:bg-[#0389FF]/90"
-        >
-          <Share2 className="h-4 w-4" />
-          <span>Share</span>
-        </Button>
-      </div>
-    </div>
-       <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-6">Campus Ambassador Program!</h1>
+          <div className="text-center mb-12">
+            <h1 className="text-4xl font-bold text-gray-900 mb-6">Campus Ambassador Program!</h1>
+          </div>
         </div>
-
-  </div>
-</div>
+      </div>
 
       {/* Main Content */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Page Title */}
-        
-        {/* Hero Image Section with uploaded image */}
+        {/* Hero Image Section */}
         <div className="relative rounded-2xl overflow-hidden mb-12 shadow-lg">
           <img 
             src="/lovable-uploads/img5.png"
@@ -139,6 +149,26 @@ maskImage: 'linear-gradient(to bottom, black 0%, transparent 35%, transparent 10
       </div>
 
       <Footer />
+
+      {/* Mini Popup Notification */}
+      {copied && (
+        <div className="fixed top-6 right-6 bg-black-900 text-black px-4 py-2 rounded-lg shadow-lg text-sm animate-fade-in-out">
+          ✅ Copied the URL!
+        </div>
+      )}
+
+      {/* Tailwind animation (add this in globals.css if not already present) */}
+      <style>
+        {`
+          @keyframes fadeInOut {
+            0%, 100% { opacity: 0; transform: translateY(20px); }
+            10%, 90% { opacity: 1; transform: translateY(0); }
+          }
+          .animate-fade-in-out {
+            animation: fadeInOut 2s ease-in-out;
+          }
+        `}
+      </style>
     </div>
   );
 };

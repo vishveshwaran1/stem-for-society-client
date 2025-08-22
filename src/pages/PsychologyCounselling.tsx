@@ -137,7 +137,7 @@ maskImage: 'linear-gradient(to bottom, black 0%, transparent 35%, transparent 10
                 </div>
               </div>
               
-              <Link to="/psychology-booking">
+              <Link to="/mental-wellbeing-counselling">
                 <Button className="w-full bg-[#0389FF] hover:bg-[#0389FF]/90 text-white py-3 text-lg font-semibold">
   BOOK YOUR SESSION
 </Button>

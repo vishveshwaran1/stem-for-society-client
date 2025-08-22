@@ -119,9 +119,9 @@ function App() {
                 <Route path="/blog-article" element={<BlogArticle />} />
                 <Route path="/blog-post/:id" element={<BlogPost />} />
                 <Route path="/career-counselling-booking" element={<CareerCounsellingBookingFlow/>} />
-                <Route path="/psychology-counselling" element={<PsychologyCounselling />} />
+                <Route path="/mental-wellbeing" element={<PsychologyCounselling />} />
                 <Route path="/career-counselling" element={<CareerCounselling />} />
-                <Route path="/mental-wellbeing" element={<PsychologyBookingFlow />} />
+                <Route path="/mental-wellbeing-counselling" element={<PsychologyBookingFlow />} />
                 <Route path="/institution-booking" element={<InstitutionBookingFlow />} />
                 <Route
                   path="/institution-pricing"

@@ -672,10 +672,3 @@ const PartnerInstitutionPortal = () => {
 
 export default PartnerInstitutionPortal;
 
-// ===== COMMENTED OUT ORIGINAL IMPLEMENTATION =====
-// [All the original code has been commented out and preserved above]
-// This new implementation merges:
-// 1. Frontend design and step structure from the original Campus Ambassador form
-// 2. Backend connectivity and API integration from PartnerWithUs.tsx 
-// 3. Proper form validation and error handling
-// 4. Correct field mappings to match backend expectations
