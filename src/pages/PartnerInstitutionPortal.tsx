@@ -132,7 +132,6 @@ function useCampusAmbassadorSignUp() {
 const PartnerInstitutionPortal = () => {
   const { user } = usePartner();
   const [currentStep, setCurrentStep] = useState(1);
-  const [userType, setUserType] = useState<"individual" | "institution">("individual");
   const [otpSent, setOtpSent] = useState(false);
   const [formData, setFormData] = useState<CampusAmbassadorForm>({
     companyName: "",
@@ -148,7 +147,7 @@ const PartnerInstitutionPortal = () => {
     state: "",
     pincode: "",
     country: "India",
-    signUpAs: "individual",
+    signUpAs: "institution",
     trainingTopics: [],
     domain: "",
     otp: "",
@@ -180,10 +179,10 @@ const PartnerInstitutionPortal = () => {
       return toast.error("Accept terms to continue!");
     }
     
-    // Update signUpAs based on userType
+    // Set signUpAs to institution
     const finalData = {
       ...formData,
-      signUpAs: userType === "institution" ? "institution" as const : "individual" as const
+      signUpAs: "institution" as const
     };
     
     registerMutation.mutate(finalData);
@@ -247,64 +246,38 @@ const PartnerInstitutionPortal = () => {
         return (
           <div className="space-y-4">
             <div className="text-right text-sm text-gray-600 mb-4">
-              {userType === "individual" ? "Personal Information" : "Company Information"}
+              Company Information
             </div>
             
-            {userType === "individual" ? (
-              <>
-                <div>
-                  <Input
-                    placeholder="Enter your name"
-                    name="instructorName"
-                    value={formData.instructorName}
-                    onChange={handleChange}
-                    className="bg-white/80 rounded-xl"
-                  />
-                </div>
-                
-                <div>
-                  <Input
-                    placeholder="Enter your Domain"
-                    name="domain"
-                    value={formData.domain}
-                    onChange={handleChange}
-                    className="bg-white/80 rounded-xl"
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                <div>
-                  <Input
-                    placeholder="Enter your company name"
-                    name="companyName"
-                    value={formData.companyName}
-                    onChange={handleChange}
-                    className="bg-white/80 rounded-xl"
-                  />
-                </div>
-                
-                <div>
-                  <Input
-                    placeholder="Enter your GST"
-                    name="cinOrGst"
-                    value={formData.cinOrGst}
-                    onChange={handleChange}
-                    className="bg-white/80 rounded-xl"
-                  />
-                </div>
-                
-                <div>
-                  <Input
-                    placeholder="Enter your name"
-                    name="instructorName"
-                    value={formData.instructorName}
-                    onChange={handleChange}
-                    className="bg-white/80 rounded-xl"
-                  />
-                </div>
-              </>
-            )}
+            <div>
+              <Input
+                placeholder="Enter your company name"
+                name="companyName"
+                value={formData.companyName}
+                onChange={handleChange}
+                className="bg-white/80 rounded-xl"
+              />
+            </div>
+            
+            <div>
+              <Input
+                placeholder="Enter your GST"
+                name="cinOrGst"
+                value={formData.cinOrGst}
+                onChange={handleChange}
+                className="bg-white/80 rounded-xl"
+              />
+            </div>
+            
+            <div>
+              <Input
+                placeholder="Enter your name"
+                name="instructorName"
+                value={formData.instructorName}
+                onChange={handleChange}
+                className="bg-white/80 rounded-xl"
+              />
+            </div>
             
             <div>
               <Select value={formData.state} onValueChange={(value) => handleSelectChange('state', value)}>
@@ -362,32 +335,28 @@ const PartnerInstitutionPortal = () => {
         return (
           <div className="space-y-4">
             <div className="text-right text-sm text-gray-600 mb-4">
-              {userType === "individual" ? "Contact Details" : "Contact & Address Details"}
+              Contact & Address Details
             </div>
             
-            {userType === "institution" && (
-              <>
-                <div>
-                  <Input
-                    placeholder="Address Line 1"
-                    name="addressLine1"
-                    value={formData.addressLine1}
-                    onChange={handleChange}
-                    className="bg-white/80 rounded-xl"
-                  />
-                </div>
-                
-                <div>
-                  <Input
-                    placeholder="Address Line 2"
-                    name="addressLine2"
-                    value={formData.addressLine2}
-                    onChange={handleChange}
-                    className="bg-white/80 rounded-xl"
-                  />
-                </div>
-              </>
-            )}
+            <div>
+              <Input
+                placeholder="Address Line 1"
+                name="addressLine1"
+                value={formData.addressLine1}
+                onChange={handleChange}
+                className="bg-white/80 rounded-xl"
+              />
+            </div>
+            
+            <div>
+              <Input
+                placeholder="Address Line 2"
+                name="addressLine2"
+                value={formData.addressLine2}
+                onChange={handleChange}
+                className="bg-white/80 rounded-xl"
+              />
+            </div>
             
             <div>
               <Select value={formData.country} onValueChange={(value) => handleSelectChange('country', value)}>
@@ -581,39 +550,11 @@ const PartnerInstitutionPortal = () => {
     >
       <div className="w-full max-w-md mx-auto">
         <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Partner With Us</h1>
-          
-          {/* Toggle for Individual/Institute */}
-          <div className="flex justify-center mb-4">
-            <div className="bg-gray-100 rounded-xl p-1 flex">
-              <button
-                type="button"
-                onClick={() => setUserType("individual")}
-                className={`px-4 py-2 rounded-lg transition-all ${
-                  userType === "individual"
-                    ? "bg-[#0389FF] text-white"
-                    : "text-gray-600 hover:text-gray-800"
-                }`}
-              >
-                Individual
-              </button>
-              <button
-                type="button"
-                onClick={() => setUserType("institution")}
-                className={`px-4 py-2 rounded-lg transition-all ${
-                  userType === "institution"
-                    ? "bg-[#0389FF] text-white"
-                    : "text-gray-600 hover:text-gray-800"
-                }`}
-              >
-                Institute
-              </button>
-            </div>
-          </div>
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">Partner With Us - Institution</h1>
           
           <p className="text-gray-600 text-sm">
-            {currentStep === 1 && (userType === "individual" ? "Enter your personal details to proceed further" : "Enter your company details to proceed further")}
-            {currentStep === 2 && (userType === "individual" ? "Enter your contact details to proceed further" : "Enter your contact & address details to proceed further")}
+            {currentStep === 1 && "Enter your company details to proceed further"}
+            {currentStep === 2 && "Enter your contact & address details to proceed further"}
             {currentStep === 3 && "Accept terms and conditions to complete signup"}
           </p>
         </div>
