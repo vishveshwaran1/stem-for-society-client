@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import Header from '@/components1/Header';
 import Footer from '@/components1/Footer';
 import { Button } from '@/components1/ui/button';
@@ -784,7 +784,7 @@ const CareerCounsellingBookingFlow = () => {
           </div>
         </div>
       </footer>
-      <Footer />
+      
       <SharePopup isVisible={isShowing} />
     </div>
   );
