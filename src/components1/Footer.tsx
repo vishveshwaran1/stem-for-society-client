@@ -29,23 +29,23 @@ const Footer = () => {
             <div>
               <h4 className="font-semibold mb-2">PROGRAMS</h4>
               <ul className="space-y-1 text-blue-100">
-                <li><a href="/training" className="hover:text-white">Explore Courses</a></li>
-                <li><a href="#" className="hover:text-white">Psychology counselling</a></li>
-                <li><a href="#" className="hover:text-white">Career counselling</a></li>
+                <li><a href="/courses" className="hover:text-white">Explore Courses</a></li>
+                <li><a href="/mental-wellbeing" className="hover:text-white">Psychology counselling</a></li>
+                <li><a href="/career-counselling" className="hover:text-white">Career counselling</a></li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold mb-2">FOR INSTITUTIONS</h4>
               <ul className="space-y-1 text-blue-100">
-                <li><a href="#" className="hover:text-white">Plans and pricings</a></li>
-                <li><a href="#" className="hover:text-white">Campus Ambassador Program</a></li>
+                <li><a href="/institution-pricing" className="hover:text-white">Plans and pricings</a></li>
+                <li><a href="/campus-ambassador" className="hover:text-white">Campus Ambassador Program</a></li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold mb-2">COMMUNITY</h4>
               <ul className="space-y-1 text-blue-100">
-                <li><a href="#" className="hover:text-white">Join Community</a></li>
-                <li><a href="#" className="hover:text-white">Scientific Blog</a></li>
+                <li><a href="/community" className="hover:text-white">Join Community</a></li>
+                <li><a href="/blog" className="hover:text-white">Scientific Blog</a></li>
                 <li><a href="https://www.youtube.com/@stemforsociety" className="hover:text-white">YouTube Channel</a></li>
               </ul>
             </div>
