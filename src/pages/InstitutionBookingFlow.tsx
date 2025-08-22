@@ -83,7 +83,7 @@ function useInstitutionSignUp() {
   });
 }
 
-const InstitutionBookingComplete = () => {
+const InstitutionBookingFlow = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -898,9 +898,28 @@ const InstitutionBookingComplete = () => {
       </div>
 
       {/* Footer */}
-      <Footer />
+        <footer className="bg-blue-900 text-white py-8 mt-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center mr-3">
+              <span className="text-blue-900 font-bold text-lg">
+                <img 
+                  src="/lovable-uploads/FooterLogo.png" 
+                  alt="STEM for Society Logo" 
+                  className="w-full h-full object-contain"
+                />
+              </span>
+            </div>
+            <div>
+              <h4 className="text-xl font-bold">STEM FOR SOCIETY</h4>
+              <p className="text-blue-200 text-sm">Let's innovate, incubate and impact the world together!</p>
+            </div>
+          </div>
+        </div>
+      </footer>
+
     </div>
   );
 };
 
-export default InstitutionBookingComplete;
+export default InstitutionBookingFlow;
