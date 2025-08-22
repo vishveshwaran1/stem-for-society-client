@@ -43,7 +43,7 @@ import PartnerStudents from "./pages/partner/PartnerStudents";
 import PartnerTrainings from "./pages/partner/PartnerTrainings";
 import PartnerSignUp from "./pages/partner/PartnerWithUs";
 import StudentDetails from "./pages/partner/StudentDetails";
-import PricingPage from "./pages/Pricing";
+// import PricingPage from "./pages/Pricing";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import PsychologyTraining from "./pages/PsychologyTraining";
 import RefundPolicy from "./pages/RefundPolicy";
@@ -102,7 +102,7 @@ function App() {
                 <Route path="/training/:id" element={<TrainingSpotlight />} />
                 <Route path="/blogs" element={<BlogListing />} />
                 <Route path="/blogs/:id" element={<BlogSpotlight />} />
-                <Route path="/pricing" element={<PricingPage />} />
+                <Route path="/pricing" element={<Home />} />
                 <Route path="/community" element={<Community />} />
                 <Route path="/blogs/new" element={<BlogCreate />} />
                 <Route path="/login" element={<Login />} />
