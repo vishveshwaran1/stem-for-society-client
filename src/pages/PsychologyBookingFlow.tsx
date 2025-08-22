@@ -13,6 +13,7 @@ import { AxiosError } from 'axios';
 import { api } from '../lib/api';
 import { toast } from 'react-toastify';
 import { mutationErrorHandler } from '../lib/utils';
+import Footer from '@/components1/Footer';
 
 // Backend form data type (what gets sent to backend)
 type PsychologyBookingForm = {
@@ -27,7 +28,7 @@ type PsychologyBookingForm = {
   idCard?: File | null;
 };
 
-// Frontend form data type (includes UI-only fields)
+// All form data type 
 interface FormData {
   // Backend fields
   firstName: string;
@@ -689,25 +690,8 @@ const PsychologyBookingFlow = () => {
         )}
       </div>
 
-      <footer className="bg-blue-900 text-white py-8 mt-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center mr-3">
-              <span className="text-blue-900 font-bold text-lg">
-                <img 
-                  src="/lovable-uploads/FooterLogo.png" 
-                  alt="STEM for Society Logo" 
-                  className="w-full h-full object-contain"
-                />
-              </span>
-            </div>
-            <div>
-              <h4 className="text-xl font-bold">STEM FOR SOCIETY</h4>
-              <p className="text-blue-200 text-sm">Let's innovate, incubate and impact the world together!</p>
-            </div>
-          </div>
-        </div>
-      </footer>
+      {/* Footer */}
+      <Footer />
     </div>
   );
 };
