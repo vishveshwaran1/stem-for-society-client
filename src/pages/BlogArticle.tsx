@@ -632,7 +632,7 @@ const BlogCreateContent = () => {
               ) : currentStep < 4 ? (
                 <Button 
                   onClick={handleContinue}
-                  className="bg-blue-600 hover:bg-blue-700 px-8 py-3 text-lg font-semibold"
+                  className="bg-blue-600 hover:bg-blue-700 px-8 py-3 text-lg text-white font-semibold"
                 >
                   CONTINUE
                 </Button>
