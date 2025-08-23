@@ -692,32 +692,32 @@ const CareerCounsellingBookingFlow = () => {
           <Header />
 
           {/* Navigation Bar */}
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center justify-between">
-              <Link to="/career-counselling">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleShare}
-                  className="flex items-center space-x-2 text-white border-[#00549FB8] rounded-full px-4 hover:bg-[#00549FB8]/90"
-                  style={{ backgroundColor: '#00549FB8' }}
-                >
-                  <Share2 className="h-4 w-4" />
-                  <span>Share</span>
-                </Button>
-              </Link>
-
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center space-x-2 text-white border-[#00549FB8] rounded-full px-4 hover:bg-[#00549FB8]/90"
-                style={{ backgroundColor: '#00549FB8' }}
-              >
-                <ArrowLeft className="h-4 w-4" />
-                <span>Back</span>
-              </Button>
-            </div>
-          </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+           <div className="flex items-center justify-between">
+             <Link to="/career-counselling">
+               <Button
+                 variant="outline"
+                 size="sm"
+                 className="flex items-center space-x-2 text-white border-[#00549FB8] rounded-full px-4 hover:bg-[#00549FB8]/90"
+                 style={{ backgroundColor: '#00549FB8' }}
+               >
+                 <ArrowLeft className="h-4 w-4" />
+                 <span>Back</span>
+               </Button>
+             </Link>
+              
+             <Button
+               variant="outline"
+               size="sm"
+               onClick={handleShare}
+               className="flex items-center space-x-2 text-white border-[#00549FB8] rounded-full px-4 hover:bg-[#00549FB8]/90"
+               style={{ backgroundColor: '#00549FB8' }}
+             >
+               <Share2 className="h-4 w-4" />
+               <span>Share</span>
+             </Button>
+           </div>
+         </div>
 
           <div className="text-center mb-8">
             <h1 className="text-xl font-medium text-gray-600 mb-2">Book your Session</h1>
