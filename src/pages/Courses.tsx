@@ -179,18 +179,48 @@ const Courses = () => {
     'Mentorship': 'Seminars/Webinar/Mentorship',
     'Certificate': 'Certificate Program',
     'Hands On': 'Instrumentation Hands-on',
-    'Training Program': 'Corporate Training Program'
+    'Training Program': 'Corporate Training'
   };
 
-  // Sync course type filters with URL parameters
+  // FIX: Add dependency on trainingFilter and ensure proper re-sync
   useEffect(() => {
-    setCourseTypeFilters(prev => prev.map(item => {
-      const mappedValue = courseTypeMapping[item.label as keyof typeof courseTypeMapping];
-      return {
-        ...item,
-        checked: trainingFilter?.includes(mappedValue) || false
-      };
-    }));
+    // Reset all course type filters first
+    setCourseTypeFilters(prev => prev.map(item => ({ ...item, checked: false })));
+    
+    // Then set the correct ones based on URL parameters
+    if (trainingFilter && trainingFilter.length > 0) {
+      setCourseTypeFilters(prev => prev.map(item => {
+        const mappedValue = courseTypeMapping[item.label as keyof typeof courseTypeMapping];
+        return {
+          ...item,
+          checked: trainingFilter.includes(mappedValue)
+        };
+      }));
+    }
+  }, [trainingFilter]); // This will trigger when URL changes
+
+  // FIX: Add effect to force re-render when navigating
+  useEffect(() => {
+    // Force component to update when URL filter changes
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlFilter = urlParams.get('filter');
+    
+    if (urlFilter && urlFilter !== trainingFilter?.[0]) {
+      // URL changed but state hasn't updated yet, force update
+      setTrainingFilter([urlFilter]);
+    }
+  }, [window.location.search]); // Listen to URL changes
+
+  // FIX: Reset other filters when trainingFilter changes from URL navigation
+  useEffect(() => {
+    if (trainingFilter) {
+      // Reset other filters when navigating from header dropdown
+      setSectorFilters(prev => prev.map(item => ({ ...item, checked: false })));
+      setStartDateFilters(prev => prev.map(item => ({ ...item, checked: false })));
+      setModeFilters(prev => prev.map(item => ({ ...item, checked: false })));
+      setSearch('');
+      setSearchQuery('');
+    }
   }, [trainingFilter]);
 
   // Helper functions
@@ -227,6 +257,19 @@ const Courses = () => {
     }
   };
 
+  // Add this helper function after the other helper functions (around line 200)
+  const isUserEnrolled = (training: StudentTraining) => {
+    // Check the isEnrolled flag first
+    if (training.isEnrolled) return true;
+    
+    // Check if user has successful transactions (same logic as filter)
+    return training.enrolments.some(enrollment =>
+      enrollment.transactions?.some(transaction => 
+        transaction.status === "success"
+      )
+    );
+  };
+
   // Main filtering logic
   const filteredTrainings = useMemo(() => {
     if (!trainings) return {};
@@ -244,32 +287,27 @@ const Courses = () => {
         // Category filter (from URL)
         const hasCategories = trainingFilter?.length > 0;
         const matchesCategory = !hasCategories || 
-                               trainingFilter.includes(training.category ?? "");
+                             trainingFilter.includes(training.category ?? "");
         
-        // Enrollment filter
-        const matchesEnrollment = !filterByMe || 
-                                 training.enrolments.some(enrollment =>
-                                   enrollment.transactions?.some(transaction => 
-                                     transaction.status === "success"
-                                   )
-                                 );
+        // FIX: Update enrollment filter to use the helper function
+        const matchesEnrollment = !filterByMe || isUserEnrolled(training);
 
         // Sector filter
         const hasSectorFilter = sectorFilters.some(f => f.checked);
         const matchesSector = !hasSectorFilter || 
-                             sectorFilters.some(filter => 
-                               filter.checked && 
-                               training.category?.toLowerCase().includes(filter.label.toLowerCase())
-                             );
-        
+                           sectorFilters.some(filter => 
+                             filter.checked && 
+                             training.category?.toLowerCase().includes(filter.label.toLowerCase())
+                           );
+      
         // Mode filter
         const hasModeFilter = modeFilters.some(f => f.checked);
         const matchesMode = !hasModeFilter || 
-                           modeFilters.some(filter => {
-                             if (!filter.checked) return false;
-                             const trainingMode = getDisplayMode(training.location);
-                             return filter.label.toLowerCase() === trainingMode.toLowerCase();
-                           });
+                         modeFilters.some(filter => {
+                           if (!filter.checked) return false;
+                           const trainingMode = getDisplayMode(training.location);
+                           return filter.label.toLowerCase() === trainingMode.toLowerCase();
+                         });
 
         // Date filter
         const hasDateFilter = startDateFilters.some(f => f.checked);
@@ -575,7 +613,8 @@ const Courses = () => {
                                       {/* Title and Enrollment Status */}
                                       <div className="flex items-start justify-between">
                                         <h4 className="text-lg font-medium text-gray-900 mb-2">{training.title}</h4>
-                                        {training.isEnrolled && (
+                                        {/* FIX: Use the helper function for consistent enrollment check */}
+                                        {isUserEnrolled(training) && (
                                           <span className="bg-green-100 text-green-600 px-3 py-1 rounded text-sm font-medium">
                                             Enrolled
                                           </span>
@@ -651,7 +690,8 @@ const Courses = () => {
                                               navigate(`/training/${training.id}`);
                                             }}
                                           >
-                                            {training.isEnrolled ? 'VIEW COURSE' : 'REGISTER NOW'}
+                                            {/* FIX: Use the helper function for consistent enrollment check */}
+                                            {isUserEnrolled(training) ? 'VIEW COURSE' : 'REGISTER NOW'}
                                           </Button>
                                         </motion.div>
                                       </div>
