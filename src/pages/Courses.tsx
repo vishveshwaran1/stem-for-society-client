@@ -169,7 +169,20 @@ const Courses = () => {
     {
       defaultValue: null,
       parse(value) {
-        return Array.isArray(value) ? value : value ? [value] : null;
+        if (!value) return null;
+        if (Array.isArray(value)) return value;
+        
+        // FIX: Handle comma-separated values and URL encoded values
+        const decoded = decodeURIComponent(value);
+        if (decoded.includes(',')) {
+          return decoded.split(',').map(v => v.trim()).filter(Boolean);
+        }
+        return [decoded];
+      },
+      serialize(value) {
+        if (!value || value.length === 0) return "";
+        // FIX: Use comma separation for multiple values
+        return value.map(v => encodeURIComponent(v)).join(',');
       },
       clearOnDefault: true,
     }
@@ -191,8 +204,11 @@ const Courses = () => {
   const [startDateFilters, setStartDateFilters] = useState<FilterOption[]>(INITIAL_DATE_FILTERS);
   const [modeFilters, setModeFilters] = useState<FilterOption[]>(INITIAL_MODE_FILTERS);
 
-  // Sync course type filters with URL parameters
+  // FIX: Improved sync for course type filters with URL parameters
   useEffect(() => {
+    console.log('=== SYNCING COURSE TYPE FILTERS ===');
+    console.log('trainingFilter from URL:', trainingFilter);
+    
     // Reset all course type filters first
     setCourseTypeFilters(prev => prev.map(item => ({ ...item, checked: false })));
     
@@ -200,34 +216,42 @@ const Courses = () => {
     if (trainingFilter && trainingFilter.length > 0) {
       setCourseTypeFilters(prev => prev.map(item => {
         const mappedValue = COURSE_TYPE_MAPPING[item.label as keyof typeof COURSE_TYPE_MAPPING];
+        const isChecked = trainingFilter.includes(mappedValue);
+        
+        console.log(`Filter "${item.label}" maps to "${mappedValue}" - checked: ${isChecked}`);
+        
         return {
           ...item,
-          checked: trainingFilter.includes(mappedValue)
+          checked: isChecked
         };
       }));
     }
+    
+    console.log('=== END SYNC ===');
   }, [trainingFilter]);
 
-  // Handle URL changes for navigation
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlFilter = urlParams.get('filter');
-    
-    if (urlFilter && urlFilter !== trainingFilter?.[0]) {
-      setTrainingFilter([urlFilter]);
-    }
-  }, [window.location.search]);
+  // FIX: Remove the problematic URL handling effect that's causing conflicts
+  // useEffect(() => {
+  //   const urlParams = new URLSearchParams(window.location.search);
+  //   const urlFilter = urlParams.get('filter');
+  //   
+  //   if (urlFilter && urlFilter !== trainingFilter?.[0]) {
+  //     setTrainingFilter([urlFilter]);
+  //   }
+  // }, [window.location.search]);
 
-  // Reset other filters when URL filter changes
+  // FIX: Improved reset logic - don't reset when URL filters are being applied
   useEffect(() => {
-    if (trainingFilter) {
+    // Only reset other filters when URL filter changes AND it's not the initial load
+    if (trainingFilter && trainingFilter.length > 0) {
+      console.log('Resetting other filters due to URL filter change');
       setSectorFilters(prev => prev.map(item => ({ ...item, checked: false })));
       setStartDateFilters(prev => prev.map(item => ({ ...item, checked: false })));
       setModeFilters(prev => prev.map(item => ({ ...item, checked: false })));
       setSearch('');
       setSearchQuery('');
     }
-  }, [trainingFilter]);
+  }, [trainingFilter?.join(',')]); // Use join to detect actual changes
 
   // HELPER FUNCTIONS
   const getDisplayMode = (location?: string) => {
@@ -285,6 +309,10 @@ const Courses = () => {
   const filteredTrainings = useMemo(() => {
     if (!trainings) return {};
     
+    console.log('=== FILTERING DEBUG ===');
+    console.log('Training filter:', trainingFilter);
+    console.log('Available trainings:', trainings);
+    
     return Object.keys(trainings).reduce((result, monthKey) => {
       const monthTrainings = trainings[monthKey as keyof typeof trainings] as StudentTraining[];
       
@@ -292,13 +320,80 @@ const Courses = () => {
         // Search filter
         const searchTerm = search.toLowerCase();
         const queryTerm = searchQuery.toLowerCase();
-        const matchesSearch = training.title.toLowerCase().includes(searchTerm) ||
+        const matchesSearch = !searchTerm && !queryTerm ? true : 
+                             training.title.toLowerCase().includes(searchTerm) ||
                              training.title.toLowerCase().includes(queryTerm);
         
-        // Category filter (from URL)
+        // FIX: Improved category filter logic
         const hasCategories = trainingFilter?.length > 0;
-        const matchesCategory = !hasCategories || 
-                               trainingFilter.includes(training.category ?? "");
+        let matchesCategory = true; // Default to true if no filters
+        
+        if (hasCategories) {
+          console.log(`Checking training "${training.title}" with category "${training.category}" against filters:`, trainingFilter);
+          
+          matchesCategory = trainingFilter.some(filter => {
+            const categoryLower = training.category?.toLowerCase() || '';
+            const titleLower = training.title.toLowerCase();
+            
+            // Direct category match
+            if (training.category === filter) {
+              console.log('✓ Direct match found');
+              return true;
+            }
+            
+            // Flexible matching based on filter type
+            switch (filter) {
+              case 'Seminars/Webinar/Mentorship':
+                const isWebinarType = categoryLower.includes('seminar') || 
+                                     categoryLower.includes('webinar') || 
+                                     categoryLower.includes('mentorship') ||
+                                     titleLower.includes('seminar') ||
+                                     titleLower.includes('webinar') ||
+                                     titleLower.includes('mentorship');
+                console.log('✓ Webinar type check:', isWebinarType);
+                return isWebinarType;
+                
+              case 'Certificate Program':
+                const isCertificate = categoryLower.includes('certificate') || 
+                                     categoryLower.includes('program') ||
+                                     titleLower.includes('certificate') ||
+                                     titleLower.includes('program');
+                console.log('✓ Certificate check:', isCertificate);
+                return isCertificate;
+                
+              case 'Corporate Training':
+                const isCorporate = categoryLower.includes('corporate') || 
+                                   categoryLower.includes('training') ||
+                                   titleLower.includes('corporate') ||
+                                   titleLower.includes('training');
+                console.log('✓ Corporate check:', isCorporate);
+                return isCorporate;
+                
+              case 'Instrumentation Hands-on':
+                const isHandsOn = categoryLower.includes('instrumentation') || 
+                                 categoryLower.includes('hands') ||
+                                 categoryLower.includes('practical') ||
+                                 categoryLower.includes('workshop') ||
+                                 titleLower.includes('instrumentation') ||
+                                 titleLower.includes('hands') ||
+                                 titleLower.includes('practical') ||
+                                 titleLower.includes('workshop');
+                console.log('✓ Hands-on check:', isHandsOn);
+                return isHandsOn;
+                
+              default:
+                // Fallback: check if any keywords from filter match
+                const filterWords = filter.toLowerCase().split(/[\s\/\-+]+/);
+                const matches = filterWords.some(word => 
+                  word.length > 2 && (categoryLower.includes(word) || titleLower.includes(word))
+                );
+                console.log('✓ Fallback check:', matches, 'for words:', filterWords);
+                return matches;
+            }
+          });
+          
+          console.log(`Final category match for "${training.title}":`, matchesCategory);
+        }
         
         // Enrollment filter
         const matchesEnrollment = !filterByMe || isUserEnrolled(training);
@@ -310,7 +405,7 @@ const Courses = () => {
                                filter.checked && 
                                training.category?.toLowerCase().includes(filter.label.toLowerCase())
                              );
-      
+    
         // Mode filter
         const hasModeFilter = modeFilters.some(f => f.checked);
         const matchesMode = !hasModeFilter || 
@@ -328,17 +423,50 @@ const Courses = () => {
                              return checkDateFilter(training.startDate, filter.id);
                            });
 
-        return matchesSearch && matchesCategory && matchesEnrollment && 
-               matchesSector && matchesMode && matchesDate;
+        const finalResult = matchesSearch && matchesCategory && matchesEnrollment && 
+                           matchesSector && matchesMode && matchesDate;
+        
+        console.log(`Training "${training.title}" final result:`, {
+          matchesSearch,
+          matchesCategory,
+          matchesEnrollment,
+          matchesSector,
+          matchesMode,
+          matchesDate,
+          finalResult
+        });
+
+        return finalResult;
       });
 
       if (filtered.length > 0) {
         result[monthKey] = filtered;
+        console.log(`Month ${monthKey} has ${filtered.length} courses`);
       }
       return result;
     }, {} as { [key: string]: StudentTraining[] });
   }, [search, searchQuery, trainings, trainingFilter, filterByMe, 
       sectorFilters, modeFilters, startDateFilters]);
+
+  // FIX: Improved debug effect
+  useEffect(() => {
+    if (trainings && Object.keys(trainings).length > 0) {
+      console.log('=== ALL TRAINING CATEGORIES ===');
+      const allTrainings = Object.values(trainings).flat() as StudentTraining[];
+      const categories = [...new Set(allTrainings.map(t => t.category))].filter(Boolean);
+      console.log('Unique categories found:', categories);
+      
+      console.log('=== TRAINING FILTER MAPPING ===');
+      Object.entries(COURSE_TYPE_MAPPING).forEach(([key, value]) => {
+        console.log(`"${key}" maps to "${value}"`);
+      });
+      
+      console.log('=== CURRENT FILTER STATE ===');
+      console.log('URL trainingFilter:', trainingFilter);
+      console.log('Checked courseTypeFilters:', courseTypeFilters.filter(f => f.checked).map(f => f.label));
+      console.log('================================');
+    }
+  }, [trainings, trainingFilter, courseTypeFilters]);
 
   // ====================
   // EVENT HANDLERS
@@ -350,23 +478,46 @@ const Courses = () => {
    * @param checked - Whether filter is checked
    */
   const handleCourseTypeFilter = (optionId: string, checked: boolean) => {
+    console.log('=== HANDLE COURSE TYPE FILTER ===');
+    console.log('optionId:', optionId, 'checked:', checked);
+    
     const selectedFilter = courseTypeFilters.find(item => item.id === optionId);
-    if (!selectedFilter) return;
+    if (!selectedFilter) {
+      console.log('Filter not found:', optionId);
+      return;
+    }
     
     const mappedValue = COURSE_TYPE_MAPPING[selectedFilter.label as keyof typeof COURSE_TYPE_MAPPING];
+    console.log('Mapped value:', mappedValue);
+    console.log('Current trainingFilter:', trainingFilter);
     
     setTrainingFilter(prev => {
       if (!prev) {
-        return checked ? [mappedValue] : null;
+        const newFilter = checked ? [mappedValue] : null;
+        console.log('No previous filters, setting to:', newFilter);
+        return newFilter;
       }
       
       if (checked) {
-        return prev.includes(mappedValue) ? prev : [...prev, mappedValue];
+        // Add filter if not already present
+        if (prev.includes(mappedValue)) {
+          console.log('Filter already exists, keeping current:', prev);
+          return prev;
+        } else {
+          const newFilter = [...prev, mappedValue];
+          console.log('Adding filter, new array:', newFilter);
+          return newFilter;
+        }
       } else {
+        // Remove filter
         const filtered = prev.filter(x => x !== mappedValue);
-        return filtered.length > 0 ? filtered : null;
+        const newFilter = filtered.length > 0 ? filtered : null;
+        console.log('Removing filter, new array:', newFilter);
+        return newFilter;
       }
     });
+    
+    console.log('=== END HANDLE ===');
   };
 
   /**
@@ -376,6 +527,8 @@ const Courses = () => {
    * @param checked - New checked state
    */
   const handleFilterChange = (filterType: string, optionId: string, checked: boolean) => {
+    console.log('handleFilterChange called:', { filterType, optionId, checked });
+    
     const updateFilter = (setter: React.Dispatch<React.SetStateAction<FilterOption[]>>) => {
       setter(prev => prev.map(item => 
         item.id === optionId ? { ...item, checked } : item
@@ -387,6 +540,11 @@ const Courses = () => {
         updateFilter(setSectorFilters);
         break;
       case 'courseType':
+        // FIX: Update local state immediately for better UX
+        setCourseTypeFilters(prev => prev.map(item => 
+          item.id === optionId ? { ...item, checked } : item
+        ));
+        // Then handle the URL update
         handleCourseTypeFilter(optionId, checked);
         break;
       case 'startDate':
@@ -626,12 +784,6 @@ const Courses = () => {
                                       e.currentTarget.src = '/course-images/default.jpg';
                                     }}
                                   />
-                                  
-                                  {/* Mode Badge */}
-                                  <div className="absolute top-2 left-2 bg-white text-gray-800 text-xs px-2 py-1 rounded shadow-sm border flex items-center space-x-1">
-                                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                                    <span>{getDisplayMode(training.location)}</span>
-                                  </div>
                                   
                                   {/* Category Badge */}
                                   {training.category && (
