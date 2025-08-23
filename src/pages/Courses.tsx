@@ -3,6 +3,9 @@ import Header from '@/components1/Header';
 import Footer from '@/components1/Footer';
 import { Button } from '@/components1/ui/button';
 import { Card, CardContent } from '@/components1/ui/card';
+import FilterDropdown from '@/components1/FilterDropdown';
+import Errorbox from "../components/Errorbox";
+import Loading from "../components/Loading";
 import { 
   ArrowLeft, 
   Share2, 
@@ -10,33 +13,29 @@ import {
   Search, 
   Calendar, 
   MapPin, 
-  DollarSign, 
   ChevronDown, 
   ChevronUp 
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import FilterDropdown from '@/components1/FilterDropdown';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
 import { parseAsBoolean, useQueryState } from "nuqs";
-import Errorbox from "../components/Errorbox";
-import Loading from "../components/Loading";
 import { api } from "../lib/api";
 import { GenericError, GenericResponse } from "../lib/types";
 import { formatDate } from "../lib/utils";
-
 dayjs.extend(isBetween);
 
+// Filter option interface for dropdown filters
 interface FilterOption {
   id: string;
   label: string;
   checked: boolean;
 }
 
+// Student training data structure
 export type StudentTraining = {
   id: string;
   title: string;
@@ -53,7 +52,7 @@ export type StudentTraining = {
   };
   link?: string;
   cost: string;
-  location?: string; // Used for mode detection: null = Online, value = Offline
+  location?: string; // null = Online, value = Offline
   isEnrolled: boolean;
   displayFeedback: boolean;
   ratings: {
@@ -90,7 +89,10 @@ export type StudentTraining = {
   }[];
 };
 
-// Custom hook to fetch trainings data
+/**
+ * Custom hook to fetch and group trainings data by month
+ * @returns Query object with training data grouped by month
+ */
 function useTrainings() {
   return useQuery<
     { [key: string]: StudentTraining[] } | object,
@@ -100,9 +102,10 @@ function useTrainings() {
     queryFn: async () => {
       const response = await api().get<GenericResponse<StudentTraining[]>>("/trainings");
       
+      // Return empty object if no data
       if (!response.data?.data?.length) return {};
       
-      // Group trainings by month
+      // Group trainings by month (MMM, YYYY format)
       const groupedByMonth = response.data.data.reduce((acc, training) => {
         const monthYear = dayjs(training.startDate).format("MMM, YYYY");
         if (!acc[monthYear]) acc[monthYear] = [];
@@ -116,13 +119,48 @@ function useTrainings() {
   });
 }
 
+
+// Course type mapping for filter translations
+const COURSE_TYPE_MAPPING = {
+  'Seminar': 'Seminars/Webinar/Mentorship',
+  'Webinar': 'Seminars/Webinar/Mentorship', 
+  'Mentorship': 'Seminars/Webinar/Mentorship',
+  'Certificate': 'Certificate Program',
+  'Hands On': 'Instrumentation Hands-on',
+  'Training Program': 'Corporate Training'
+};
+
+// Initial filter options
+const INITIAL_SECTOR_FILTERS: FilterOption[] = [
+  { id: 'healthcare', label: 'Healthcare', checked: false },
+  { id: 'technology', label: 'Technology', checked: false },
+  { id: 'biotechnology', label: 'Biotechnology', checked: false },
+  { id: 'ai', label: 'AI/ML', checked: false },
+  { id: 'data', label: 'Data Science', checked: false },
+];
+
+const INITIAL_COURSE_TYPE_FILTERS: FilterOption[] = [
+  { id: 'seminar', label: 'Seminar', checked: false },
+  { id: 'webinar', label: 'Webinar', checked: false },
+  { id: 'mentorship', label: 'Mentorship', checked: false },
+  { id: 'certificate', label: 'Certificate', checked: false },
+  { id: 'handson', label: 'Hands On', checked: false },
+  { id: 'training', label: 'Training Program', checked: false },
+];
+
+const INITIAL_DATE_FILTERS: FilterOption[] = [
+  { id: 'thisweek', label: 'This Week', checked: false },
+  { id: 'thismonth', label: 'This month', checked: false },
+];
+
+const INITIAL_MODE_FILTERS: FilterOption[] = [
+  { id: 'online', label: 'Online', checked: false },
+  { id: 'offline', label: 'Offline', checked: false },
+];
+
 const Courses = () => {
   const navigate = useNavigate();
-  
-  // Data fetching
   const { data: trainings, isLoading, error } = useTrainings();
-  
-  // URL state for filters (maintaining backward compatibility)
   const [trainingFilter, setTrainingFilter] = useQueryState<string[] | null>(
     "filter",
     {
@@ -139,82 +177,47 @@ const Courses = () => {
     parseAsBoolean
   );
 
-  // Local state for search and filters
+  // Local state
   const [search, setSearch] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
 
-  // Filter options
-  const [sectorFilters, setSectorFilters] = useState<FilterOption[]>([
-    { id: 'healthcare', label: 'Healthcare', checked: false },
-    { id: 'technology', label: 'Technology', checked: false },
-    { id: 'biotechnology', label: 'Biotechnology', checked: false },
-    { id: 'ai', label: 'AI/ML', checked: false },
-    { id: 'data', label: 'Data Science', checked: false },
-  ]);
+  // Filter states
+  const [sectorFilters, setSectorFilters] = useState<FilterOption[]>(INITIAL_SECTOR_FILTERS);
+  const [courseTypeFilters, setCourseTypeFilters] = useState<FilterOption[]>(INITIAL_COURSE_TYPE_FILTERS);
+  const [startDateFilters, setStartDateFilters] = useState<FilterOption[]>(INITIAL_DATE_FILTERS);
+  const [modeFilters, setModeFilters] = useState<FilterOption[]>(INITIAL_MODE_FILTERS);
 
-  const [courseTypeFilters, setCourseTypeFilters] = useState<FilterOption[]>([
-    { id: 'seminar', label: 'Seminar', checked: false },
-    { id: 'webinar', label: 'Webinar', checked: false },
-    { id: 'mentorship', label: 'Mentorship', checked: false },
-    { id: 'certificate', label: 'Certificate', checked: false },
-    { id: 'handson', label: 'Hands On', checked: false },
-    { id: 'training', label: 'Training Program', checked: false },
-  ]);
-
-  const [startDateFilters, setStartDateFilters] = useState<FilterOption[]>([
-    { id: 'thisweek', label: 'This Week', checked: false },
-    { id: 'thismonth', label: 'This month', checked: false },
-  ]);
-
-  const [modeFilters, setModeFilters] = useState<FilterOption[]>([
-    { id: 'online', label: 'Online', checked: false },
-    { id: 'offline', label: 'Offline', checked: false },
-  ]);
-
-  // Course type mapping to filter values
-  const courseTypeMapping = {
-    'Seminar': 'Seminars/Webinar/Mentorship',
-    'Webinar': 'Seminars/Webinar/Mentorship', 
-    'Mentorship': 'Seminars/Webinar/Mentorship',
-    'Certificate': 'Certificate Program',
-    'Hands On': 'Instrumentation Hands-on',
-    'Training Program': 'Corporate Training'
-  };
-
-  // FIX: Add dependency on trainingFilter and ensure proper re-sync
+  // Sync course type filters with URL parameters
   useEffect(() => {
     // Reset all course type filters first
     setCourseTypeFilters(prev => prev.map(item => ({ ...item, checked: false })));
     
-    // Then set the correct ones based on URL parameters
+    // Set correct filters based on URL parameters
     if (trainingFilter && trainingFilter.length > 0) {
       setCourseTypeFilters(prev => prev.map(item => {
-        const mappedValue = courseTypeMapping[item.label as keyof typeof courseTypeMapping];
+        const mappedValue = COURSE_TYPE_MAPPING[item.label as keyof typeof COURSE_TYPE_MAPPING];
         return {
           ...item,
           checked: trainingFilter.includes(mappedValue)
         };
       }));
     }
-  }, [trainingFilter]); // This will trigger when URL changes
+  }, [trainingFilter]);
 
-  // FIX: Add effect to force re-render when navigating
+  // Handle URL changes for navigation
   useEffect(() => {
-    // Force component to update when URL filter changes
     const urlParams = new URLSearchParams(window.location.search);
     const urlFilter = urlParams.get('filter');
     
     if (urlFilter && urlFilter !== trainingFilter?.[0]) {
-      // URL changed but state hasn't updated yet, force update
       setTrainingFilter([urlFilter]);
     }
-  }, [window.location.search]); // Listen to URL changes
+  }, [window.location.search]);
 
-  // FIX: Reset other filters when trainingFilter changes from URL navigation
+  // Reset other filters when URL filter changes
   useEffect(() => {
     if (trainingFilter) {
-      // Reset other filters when navigating from header dropdown
       setSectorFilters(prev => prev.map(item => ({ ...item, checked: false })));
       setStartDateFilters(prev => prev.map(item => ({ ...item, checked: false })));
       setModeFilters(prev => prev.map(item => ({ ...item, checked: false })));
@@ -223,7 +226,7 @@ const Courses = () => {
     }
   }, [trainingFilter]);
 
-  // Helper functions
+  // HELPER FUNCTIONS
   const getDisplayMode = (location?: string) => {
     return location ? "Offline" : "Online";
   };
@@ -234,7 +237,7 @@ const Courses = () => {
 
   const formatPrice = (cost: string) => {
     if (cost === '0' || cost.toLowerCase() === 'free') return 'Free';
-    return  `₹${cost}`;
+    return `₹${cost}`;
   };
 
   const checkDateFilter = (startDate: string, filterType: string) => {
@@ -257,12 +260,11 @@ const Courses = () => {
     }
   };
 
-  // Add this helper function after the other helper functions (around line 200)
   const isUserEnrolled = (training: StudentTraining) => {
     // Check the isEnrolled flag first
     if (training.isEnrolled) return true;
     
-    // Check if user has successful transactions (same logic as filter)
+    // Check if user has successful transactions
     return training.enrolments.some(enrollment =>
       enrollment.transactions?.some(transaction => 
         transaction.status === "success"
@@ -270,7 +272,13 @@ const Courses = () => {
     );
   };
 
-  // Main filtering logic
+  const toggleMonthExpansion = (month: string) => {
+    setExpandedMonth(expandedMonth === month ? null : month);
+  };
+
+  /**
+   * Main filtering logic - applies all active filters
+   */
   const filteredTrainings = useMemo(() => {
     if (!trainings) return {};
     
@@ -287,27 +295,27 @@ const Courses = () => {
         // Category filter (from URL)
         const hasCategories = trainingFilter?.length > 0;
         const matchesCategory = !hasCategories || 
-                             trainingFilter.includes(training.category ?? "");
+                               trainingFilter.includes(training.category ?? "");
         
-        // FIX: Update enrollment filter to use the helper function
+        // Enrollment filter
         const matchesEnrollment = !filterByMe || isUserEnrolled(training);
 
         // Sector filter
         const hasSectorFilter = sectorFilters.some(f => f.checked);
         const matchesSector = !hasSectorFilter || 
-                           sectorFilters.some(filter => 
-                             filter.checked && 
-                             training.category?.toLowerCase().includes(filter.label.toLowerCase())
-                           );
+                             sectorFilters.some(filter => 
+                               filter.checked && 
+                               training.category?.toLowerCase().includes(filter.label.toLowerCase())
+                             );
       
         // Mode filter
         const hasModeFilter = modeFilters.some(f => f.checked);
         const matchesMode = !hasModeFilter || 
-                         modeFilters.some(filter => {
-                           if (!filter.checked) return false;
-                           const trainingMode = getDisplayMode(training.location);
-                           return filter.label.toLowerCase() === trainingMode.toLowerCase();
-                         });
+                           modeFilters.some(filter => {
+                             if (!filter.checked) return false;
+                             const trainingMode = getDisplayMode(training.location);
+                             return filter.label.toLowerCase() === trainingMode.toLowerCase();
+                           });
 
         // Date filter
         const hasDateFilter = startDateFilters.some(f => f.checked);
@@ -329,12 +337,20 @@ const Courses = () => {
   }, [search, searchQuery, trainings, trainingFilter, filterByMe, 
       sectorFilters, modeFilters, startDateFilters]);
 
-  // Filter change handlers
+  // ====================
+  // EVENT HANDLERS
+  // ====================
+
+  /**
+   * Handle course type filter changes
+   * @param optionId - Filter option ID
+   * @param checked - Whether filter is checked
+   */
   const handleCourseTypeFilter = (optionId: string, checked: boolean) => {
     const selectedFilter = courseTypeFilters.find(item => item.id === optionId);
     if (!selectedFilter) return;
     
-    const mappedValue = courseTypeMapping[selectedFilter.label as keyof typeof courseTypeMapping];
+    const mappedValue = COURSE_TYPE_MAPPING[selectedFilter.label as keyof typeof COURSE_TYPE_MAPPING];
     
     setTrainingFilter(prev => {
       if (!prev) {
@@ -350,6 +366,12 @@ const Courses = () => {
     });
   };
 
+  /**
+   * Handle filter changes for all filter types
+   * @param filterType - Type of filter being changed
+   * @param optionId - Option ID being changed
+   * @param checked - New checked state
+   */
   const handleFilterChange = (filterType: string, optionId: string, checked: boolean) => {
     const updateFilter = (setter: React.Dispatch<React.SetStateAction<FilterOption[]>>) => {
       setter(prev => prev.map(item => 
@@ -373,29 +395,32 @@ const Courses = () => {
     }
   };
 
+  /**
+   * Reset all filters to default state
+   */
   const resetAllFilters = () => {
-    setSectorFilters(prev => prev.map(item => ({ ...item, checked: false })));
-    setCourseTypeFilters(prev => prev.map(item => ({ ...item, checked: false })));
-    setStartDateFilters(prev => prev.map(item => ({ ...item, checked: false })));
-    setModeFilters(prev => prev.map(item => ({ ...item, checked: false })));
+    setSectorFilters(INITIAL_SECTOR_FILTERS);
+    setCourseTypeFilters(INITIAL_COURSE_TYPE_FILTERS);
+    setStartDateFilters(INITIAL_DATE_FILTERS);
+    setModeFilters(INITIAL_MODE_FILTERS);
     setSearchQuery('');
     setSearch('');
     setTrainingFilter(null);
     setFilterByMe(null);
   };
 
-  const toggleMonthExpansion = (month: string) => {
-    setExpandedMonth(expandedMonth === month ? null : month);
-  };
+  // ====================
+  // LOADING & ERROR STATES
+  // ====================
 
-  // Loading and error states
   if (isLoading) return <Loading />;
   if (error) return <Errorbox message={error.message} />;
 
+  
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Hero Section with Grid Background - REDUCED HEIGHT */}
-      <div className="relative"> {/* Removed min-h-screen */}
+      {/* Hero Section */}
+      <div className="relative">
         {/* Decorative grid background */}
         <div 
           className="absolute inset-0 opacity-50 pointer-events-none"
@@ -416,6 +441,7 @@ const Courses = () => {
           {/* Navigation */}
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between">
+              {/* Back Button */}
               <Link to="/">
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                   <Button
@@ -429,6 +455,7 @@ const Courses = () => {
                 </motion.div>
               </Link>
 
+              {/* Share Button */}
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Button
                   variant="outline"
@@ -442,8 +469,8 @@ const Courses = () => {
             </div>
           </div>
 
-          {/* Page title - ADDED BOTTOM PADDING */}
-          <div className="text-center mb-8 pb-16"> {/* Added pb-16 for spacing */}
+          {/* Page Title */}
+          <div className="text-center mb-8 pb-16">
             <motion.h1 
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -463,7 +490,9 @@ const Courses = () => {
           </div>
         </div>
       </div>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4"> {/* Changed from py-8 to py-4 */}
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {/* Filters Section */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -472,11 +501,13 @@ const Courses = () => {
           className="bg-white rounded-xl shadow-sm p-6 mb-8 sticky top-4 z-20"
         >
           <div className="flex flex-wrap items-center gap-4">
+            {/* Filter Label */}
             <div className="flex items-center space-x-2">
               <Filter className="h-4 w-4 text-gray-500" />
               <span className="text-sm font-medium text-gray-700">Filter By</span>
             </div>
             
+            {/* Filter Dropdowns */}
             <FilterDropdown
               title="Sector"
               options={sectorFilters}
@@ -613,7 +644,6 @@ const Courses = () => {
                                       {/* Title and Enrollment Status */}
                                       <div className="flex items-start justify-between">
                                         <h4 className="text-lg font-medium text-gray-900 mb-2">{training.title}</h4>
-                                        {/* FIX: Use the helper function for consistent enrollment check */}
                                         {isUserEnrolled(training) && (
                                           <span className="bg-green-100 text-green-600 px-3 py-1 rounded text-sm font-medium">
                                             Enrolled
@@ -690,7 +720,6 @@ const Courses = () => {
                                               navigate(`/training/${training.id}`);
                                             }}
                                           >
-                                            {/* FIX: Use the helper function for consistent enrollment check */}
                                             {isUserEnrolled(training) ? 'VIEW COURSE' : 'REGISTER NOW'}
                                           </Button>
                                         </motion.div>
