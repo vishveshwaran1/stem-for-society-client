@@ -26,6 +26,8 @@ import { parseAsBoolean, useQueryState } from "nuqs";
 import { api } from "../lib/api";
 import { GenericError, GenericResponse } from "../lib/types";
 import { formatDate } from "../lib/utils";
+import { SharePopup } from '@/components1/ui/SharePopup';
+import { useShare } from '@/hooks/useShare';
 dayjs.extend(isBetween);
 
 // Filter option interface for dropdown filters
@@ -161,6 +163,7 @@ const INITIAL_MODE_FILTERS: FilterOption[] = [
 const Courses = () => {
   const navigate = useNavigate();
   const { data: trainings, isLoading, error } = useTrainings();
+  const { isShowing, handleShare } = useShare();
   const [trainingFilter, setTrainingFilter] = useQueryState<string[] | null>(
     "filter",
     {
@@ -460,6 +463,7 @@ const Courses = () => {
                 <Button
                   variant="outline"
                   size="sm"
+                  onClick={handleShare}
                   className="flex items-center space-x-2 bg-[#0389FF] text-white border-[#0389FF] rounded-full px-4 hover:bg-[#0389FF]/90"
                 >
                   <Share2 className="h-4 w-4" />
@@ -806,6 +810,7 @@ const Courses = () => {
       </motion.div>
 
       <Footer />
+      <SharePopup isVisible={isShowing} />
     </div>
   );
 };
