@@ -14,7 +14,9 @@ import { api } from '../lib/api';
 import { toast } from 'react-toastify';
 import { mutationErrorHandler, initializeRazorpay } from '../lib/utils';
 import { RZPY_KEYID } from '../Constants';
-import Footer from '@/components1/Footer';
+import { useShare } from '@/hooks/useShare';
+import { SharePopup } from '@/components1/ui/SharePopup';
+
 
 // Backend types from Pricing.tsx
 type CreatePaymentResponse = {
@@ -88,7 +90,8 @@ const InstitutionBookingFlow = () => {
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const { mutateAsync, isPending } = useInstitutionSignUp();
-  
+  const { isShowing, handleShare } = useShare();
+
   const [formData, setFormData] = useState<FormData>({
     // Backend fields
     schoolName: '',
@@ -829,7 +832,7 @@ const InstitutionBookingFlow = () => {
           {/* Navigation Bar */}
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between">
-              <Link to="/pricing">
+              <Link to="/institution-pricing">
                 <Button
                   variant="outline"
                   size="sm"
@@ -843,6 +846,7 @@ const InstitutionBookingFlow = () => {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={handleShare}
                 className="flex items-center space-x-2 bg-[#0389FF] text-white border-[#0389FF] rounded-full px-4 hover:bg-[#0389FF]/90"
               >
                 <Share2 className="h-4 w-4" />
@@ -917,7 +921,7 @@ const InstitutionBookingFlow = () => {
           </div>
         </div>
       </footer>
-
+        <SharePopup isVisible={isShowing} />
     </div>
   );
 };
