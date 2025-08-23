@@ -13,7 +13,8 @@ import { AxiosError } from 'axios';
 import { api } from '../lib/api';
 import { toast } from 'react-toastify';
 import { mutationErrorHandler } from '../lib/utils';
-import Footer from '@/components1/Footer';
+import { useShare } from '../hooks/useShare';
+import {SharePopup} from '../components1/ui/SharePopup'
 
 // Backend form data type (what gets sent to backend)
 type PsychologyBookingForm = {
@@ -87,7 +88,8 @@ const PsychologyBookingFlow = () => {
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const { mutate: bookSession, isPending } = useBookPsychologySession();
-  
+  const { isShowing, handleShare } = useShare();
+
   const [formData, setFormData] = useState<FormData>({
     // Backend fields
     firstName: '',
@@ -622,9 +624,9 @@ const PsychologyBookingFlow = () => {
           <Header />
 
           {/* Navigation Bar */}
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between">
-              <Link to="/">
+              <Link to="/mental-wellbeing">
                 <Button
                   variant="outline"
                   size="sm"
@@ -635,10 +637,11 @@ const PsychologyBookingFlow = () => {
                   <span>Back</span>
                 </Button>
               </Link>
-
+               
               <Button
                 variant="outline"
                 size="sm"
+                onClick={handleShare}
                 className="flex items-center space-x-2 text-white border-[#00549FB8] rounded-full px-4 hover:bg-[#00549FB8]/90"
                 style={{ backgroundColor: '#00549FB8' }}
               >
@@ -713,7 +716,7 @@ const PsychologyBookingFlow = () => {
           </div>
         </div>
       </footer>
-
+        <SharePopup isVisible={isShowing} />
     </div>
   );
 };
