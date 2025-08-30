@@ -1,9 +1,9 @@
-
 import { useState } from "react";
 import { Card, CardContent } from "@/components1/ui/card";
 import { Badge } from "@/components1/ui/badge";
 import { Button } from "@/components1/ui/button";
 import { BookOpen, Award, Users, TestTube, Calendar, Monitor, ChevronDown, ChevronUp } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const ProgramStructure = () => {
   const [expandedCard, setExpandedCard] = useState<number | null>(null);
@@ -18,6 +18,7 @@ const ProgramStructure = () => {
       hoverDuration: "Weekly Sessions",
       hoverFeatures: ["Live Q&A", "Expert Networking"],
       icon: <BookOpen className="h-5 w-5 text-[#0389FF]" />,
+      filterUrl: "/courses?filter=Seminars%2FWebinar%2FMentorship",
       expandedContent: {
         description: "Join our regular seminars and webinars to stay updated with the latest industry trends and connect with experts.",
         highlights: ["Expert speakers", "Interactive sessions", "Networking opportunities", "Certificate of participation"]
@@ -32,6 +33,7 @@ const ProgramStructure = () => {
       hoverDuration: "Self-Paced Learning",
       hoverFeatures: ["24/7 Support", "Lifetime Access"],
       icon: <Award className="h-5 w-5 text-[#0389FF]" />,
+      filterUrl: "/courses?filter=Certificate%20Program",
       expandedContent: {
         description: "Get certified with our comprehensive basic programs designed for beginners and professionals looking to upskill.",
         highlights: ["Industry-recognized certificate", "Self-paced learning", "24/7 support", "Lifetime access"]
@@ -46,6 +48,7 @@ const ProgramStructure = () => {
       hoverDuration: "Intensive Bootcamp",
       hoverFeatures: ["Custom Curriculum", "Team Assessment"],
       icon: <Users className="h-5 w-5 text-[#0389FF]" />,
+      filterUrl: "/courses?filter=Corporate%20Training",
       expandedContent: {
         description: "Intensive corporate training programs designed to enhance team skills and organizational capabilities.",
         highlights: ["Customized curriculum", "Team assessments", "Progress tracking", "Corporate certification"]
@@ -60,6 +63,7 @@ const ProgramStructure = () => {
       hoverDuration: "Intensive Practical",
       hoverFeatures: ["Real Equipment", "Expert Mentorship"],
       icon: <TestTube className="h-5 w-5 text-[#0389FF]" />,
+      filterUrl: "/courses?filter=Instrumentation%20Hands-on",
       expandedContent: {
         description: "Advanced hands-on training with real instruments and equipment for practical learning experience.",
         highlights: ["Real equipment training", "Lab access", "Expert mentorship", "Project-based learning"]
@@ -160,20 +164,28 @@ const ProgramStructure = () => {
                     className="flex-1 text-xs py-2 h-8 rounded-xl group-hover:bg-transparent group-hover:border-white group-hover:text-white transition-colors"
                     onClick={() => toggleExpanded(index)}
                   >
-                    <span className="mr-1">More info</span>
+                    
                     {expandedCard === index ? (
-                      <ChevronUp className="h-3 w-3" />
+                      <>
+                        <span className="mr-1">Less Info</span>
+                        <ChevronUp className="h-3 w-3" />
+                      </>
                     ) : (
-                      <ChevronDown className="h-3 w-3" />
+                      <>
+                        <span className="mr-1">More Info</span>
+                        <ChevronDown className="h-3 w-3" />
+                      </>
                     )}
                   </Button>
                   {expandedCard === index && (
-                    <Button 
-                      size="sm" 
-                      className="text-xs py-2 h-8 bg-[#0389FF] hover:bg-[#0389FF]/90 group-hover:bg-white group-hover:text-[#0389FF] transition-colors rounded-xl"
-                    >
-                      START LEARNING
-                    </Button>
+                    <Link to={program.filterUrl}>
+                      <Button 
+                        size="sm" 
+                        className="text-xs py-2 h-8 bg-[#0389FF] hover:bg-[#0389FF]/90 group-hover:bg-white group-hover:text-[#0389FF] transition-colors rounded-xl"
+                      >
+                        START LEARNING
+                      </Button>
+                    </Link>
                   )}
                 </div>
               </CardContent>
