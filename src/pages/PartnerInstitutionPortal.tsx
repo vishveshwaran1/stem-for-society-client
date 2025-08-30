@@ -1,21 +1,3 @@
-// ===== COMMENTED OUT ORIGINAL CODE =====
-// import { Alert, Button, NumberInput, TextInput } from "@mantine/core";
-// import { useMutation } from "@tanstack/react-query";
-// import { Check } from "lucide-react";
-// import { usePartner } from "@/lib/hooks";
-// import { GenericError, GenericResponse } from "../lib/types";
-// import { AxiosError } from "axios";
-// import { mutationErrorHandler } from "../lib/utils";
-// import { toast } from "react-toastify";
-// import {Link,  Navigate, useNavigate} from 'react-router-dom';
-// import { useState } from "react";
-// import { Input } from "@/components1/ui/input";
-// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components1/ui/select";
-// import { Checkbox } from "@/components1/ui/checkbox";
-// import {api} from "@/lib/api";
-// import SignupLayout from "@/components1/ui/SignupLayout";
-
-// ===== NEW IMPLEMENTATION =====
 import { Button } from "@mantine/core";
 import { useMutation } from "@tanstack/react-query";
 import { AxiosError } from "axios";
@@ -31,94 +13,46 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components1/ui/checkbox";
 import SignupLayout from "@/components1/ui/SignupLayout";
 
-
-// ===== COMMENTED OUT ORIGINAL TYPES =====
-// type EduType = "UG" | "PG" | "PhD";
-// type PartnerSignUpForm = {
-//   firstName: string;
-//   domain: string;
-//   email: string;
-//   password?: string;
-//   companyName?: string;
-//   gstNo?: string;
-//   mobile: string;
-//   eduType: EduType;
-//   department: string;
-//   collegeName: string;
-//   yearInCollege?: number;
-//   collegeCity: string;
-//   dob: Date | null;
-//   linkedin: string;
-//   state?: string;
-//   city?: string;
-//   pincode?: string;
-//   country?: string;
-//   signUpAs?: "individual" | "institute";
-//   otp?: string;
-//   topic?: string;
-//   sector?: string;
-//   acceptTerms?: boolean;
-//   addressLine1?: string;
-//   addressLine2?: string;
-// }
-
-// ===== NEW TYPES (MERGED FROM PARTNER SIGNUP) =====
-type CampusAmbassadorForm = {
-  companyName?: string;
+// ===== UPDATED TYPES WITH NEW FIELDS =====
+type PartnerInstitutionForm = {
+  companyName: string;
   email: string;
-  cinOrGst?: string;
+  gst: string;
   instructorName: string;
   phone: string;
-  addressLine1?: string;
-  addressLine2?: string;
+  addressLine1: string;
+  addressLine2: string;
   acceptTerms: boolean;
   password: string;
   city: string;
   state: string;
   pincode: string;
   country: string;
-  signUpAs: "individual" | "institution";
+  signUpAs: "institution";
   trainingTopics?: string[];
-  // Additional Campus Ambassador specific fields
   domain?: string;
-  otp?: string;
-  topic?: string;
-  sector?: string;
+  otp: string;
+  topic: string;
+  sector: string;
+  logo?: File | null;
+  digitalSign?: File | null;
 };
 
-
-// ===== COMMENTED OUT ORIGINAL HOOK =====
-// function usePartnerSignUp() {
-//   const navigate = useNavigate();
-//   return useMutation<
-//     GenericResponse,
-//     AxiosError<GenericError>,
-//     PartnerSignUpForm,
-//     unknown
-//   >({
-//     mutationFn: async (data: PartnerSignUpForm) => {
-//       const response = await api().post("/partner/auth/register", data);
-//       return response.data;
-//     },
-//     onSuccess: () => {
-//       toast.success("Registration successful!");
-//       navigate("/partner/signin");
-//     },
-//     onError: (err) => mutationErrorHandler(err),
-//   });
-// }
-
-// ===== NEW HOOK (CORRECT BACKEND CONNECTIVITY) =====
-function useCampusAmbassadorSignUp() {
+// ===== HOOK FOR BACKEND CONNECTIVITY =====
+function usePartnerInstitutionSignUp() {
   const navigate = useNavigate();
   return useMutation<
     GenericResponse,
     AxiosError<GenericError>,
-    CampusAmbassadorForm,
+    FormData,
     unknown
   >({
-    mutationFn: async (data: CampusAmbassadorForm) => {
-      const response = await api().post("/partner/auth/register", data);
+    mutationFn: async (formData: FormData) => {
+      const response = await api().post("/partner/auth/register", formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
       return response.data;
     },
     onSuccess: () => {
@@ -133,10 +67,10 @@ const PartnerInstitutionPortal = () => {
   const { user } = usePartner();
   const [currentStep, setCurrentStep] = useState(1);
   const [otpSent, setOtpSent] = useState(false);
-  const [formData, setFormData] = useState<CampusAmbassadorForm>({
+  const [formData, setFormData] = useState<PartnerInstitutionForm>({
     companyName: "",
     email: "",
-    cinOrGst: "",
+    gst: "",
     instructorName: "",
     phone: "",
     addressLine1: "",
@@ -153,9 +87,11 @@ const PartnerInstitutionPortal = () => {
     otp: "",
     topic: "",
     sector: "",
+    logo: null,
+    digitalSign: null,
   });
 
-  const registerMutation = useCampusAmbassadorSignUp();
+  const registerMutation = usePartnerInstitutionSignUp();
 
   // Redirect if user is already logged in
   if (user) return <Navigate to={"/partner"} />;
@@ -163,6 +99,11 @@ const PartnerInstitutionPortal = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fieldName: 'logo' | 'digitalSign') => {
+    const file = e.target.files?.[0] || null;
+    setFormData(prev => ({ ...prev, [fieldName]: file }));
   };
 
   const handleSelectChange = (field: string, value: string) => {
@@ -179,13 +120,23 @@ const PartnerInstitutionPortal = () => {
       return toast.error("Accept terms to continue!");
     }
     
-    // Set signUpAs to institution
-    const finalData = {
-      ...formData,
-      signUpAs: "institution" as const
-    };
+    // Create FormData object for file uploads
+    const submitData = new FormData();
     
-    registerMutation.mutate(finalData);
+    // Append all form fields
+    Object.entries(formData).forEach(([key, value]) => {
+      if (key === 'logo' || key === 'digitalSign') {
+        if (value instanceof File) {
+          submitData.append(key, value);
+        }
+      } else if (key === 'trainingTopics' && Array.isArray(value)) {
+        submitData.append(key, JSON.stringify(value));
+      } else if (value !== null && value !== undefined) {
+        submitData.append(key, String(value));
+      }
+    });
+    
+    registerMutation.mutate(submitData);
   };
 
   const handleNext = () => {
@@ -203,7 +154,10 @@ const PartnerInstitutionPortal = () => {
   const sendOTP = () => {
     if (formData.phone && formData.phone.length >= 10) {
       setOtpSent(true);
+      toast.info("OTP sent to your mobile number");
       console.log("Sending OTP to:", formData.phone);
+    } else {
+      toast.error("Please enter a valid mobile number");
     }
   };
 
@@ -256,16 +210,18 @@ const PartnerInstitutionPortal = () => {
                 value={formData.companyName}
                 onChange={handleChange}
                 className="bg-white/80 rounded-xl"
+                required
               />
             </div>
             
             <div>
               <Input
-                placeholder="Enter your GST"
-                name="cinOrGst"
-                value={formData.cinOrGst}
+                placeholder="Enter your GST number"
+                name="gst"
+                value={formData.gst}
                 onChange={handleChange}
                 className="bg-white/80 rounded-xl"
+                required
               />
             </div>
             
@@ -276,57 +232,70 @@ const PartnerInstitutionPortal = () => {
                 value={formData.instructorName}
                 onChange={handleChange}
                 className="bg-white/80 rounded-xl"
+                required
               />
             </div>
             
-            <div>
-              <Select value={formData.state} onValueChange={(value) => handleSelectChange('state', value)}>
-                <SelectTrigger className="bg-white/80 rounded-xl">
-                  <SelectValue placeholder="Select your state" />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  <SelectItem value="maharashtra" className="bg-white text-black rounded-xl 
-            data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
-            data-[state=checked]:bg-[#0389FF] data-[state=checked]:text-white"
->Maharashtra</SelectItem>
-                  <SelectItem value="karnataka" className="bg-white text-black rounded-xl 
-            data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
-            data-[state=checked]:bg-[#0389FF] data-[state=checked]:text-white"
->Karnataka</SelectItem>
-                  <SelectItem value="tamil-nadu" className="bg-white text-black rounded-xl 
-            data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
-            data-[state=checked]:bg-[#0389FF] data-[state=checked]:text-white"
->Tamil Nadu</SelectItem>
-                  <SelectItem value="gujarat" className="bg-white text-black rounded-xl 
-            data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
-            data-[state=checked]:bg-[#0389FF] data-[state=checked]:text-white"
->Gujarat</SelectItem>
-                  <SelectItem value="delhi" className="bg-white text-black rounded-xl 
-            data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
-            data-[state=checked]:bg-[#0389FF] data-[state=checked]:text-white"
->Delhi</SelectItem>
-                </SelectContent>
-              </Select>
+            {/* Company Logo Upload */}
+              <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Company Logo
+              </label>
+              <div className="flex items-center justify-between bg-white/80 rounded-xl border border-gray-300 p-3">
+                <div className="flex-1">
+                  {formData.logo ? (
+                    <span className="text-sm text-green-600 font-medium">
+                      {formData.logo.name}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-gray-500">
+                      No file selected
+                    </span>
+                  )}
+                </div>
+                <div className="ml-3">
+                  <label className="cursor-pointer bg-[#0389FF] hover:bg-[#0389FF]/90 text-white px-4 py-2 rounded-full text-sm font-semibold transition-colors">
+                    Choose File
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileChange(e, 'logo')}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              </div>
             </div>
             
+            {/* Digital Signature Upload */}
             <div>
-              <Input
-                placeholder="Enter your city"
-                name="city"
-                value={formData.city}
-                onChange={handleChange}
-                className="bg-white/80 rounded-xl"
-              />
-            </div>
-            
-            <div>
-              <Input
-                placeholder="Enter pincode"
-                name="pincode"
-                value={formData.pincode}
-                onChange={handleChange}
-                className="bg-white/80 rounded-xl"
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Digital Signature
+              </label>
+              <div className="flex items-center justify-between bg-white/80 rounded-xl border border-gray-300 p-3">
+                <div className="flex-1">
+                  {formData.digitalSign ? (
+                    <span className="text-sm text-green-600 font-medium">
+                      {formData.digitalSign.name}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-gray-500">
+                      No file selected
+                    </span>
+                  )}
+                </div>
+                <div className="ml-3">
+                  <label className="cursor-pointer bg-[#0389FF] hover:bg-[#0389FF]/90 text-white px-4 py-2 rounded-full text-sm font-semibold transition-colors">
+                    Choose File
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileChange(e, 'digitalSign')}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              </div>
             </div>
           </div>
         );
@@ -335,7 +304,73 @@ const PartnerInstitutionPortal = () => {
         return (
           <div className="space-y-4">
             <div className="text-right text-sm text-gray-600 mb-4">
-              Contact & Address Details
+              Address Details
+            </div>
+            
+            <div>
+              <Select value={formData.country} onValueChange={(value) => handleSelectChange('country', value)}>
+                <SelectTrigger className="bg-white/80 rounded-xl">
+                  <SelectValue placeholder="Select your country" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="India" className="bg-white text-black rounded-xl 
+            data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
+            data-[state=checked]:bg-[#0389FF]">India</SelectItem>
+                  <SelectItem value="USA" className="bg-white text-black rounded-xl 
+            data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
+            data-[state=checked]:bg-[#0389FF]">United States</SelectItem>
+                  <SelectItem value="UK" className="bg-white text-black rounded-xl 
+            data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
+            data-[state=checked]:bg-[#0389FF]   ">United Kingdom</SelectItem>
+                  <SelectItem value="Canada" className="bg-white text-black rounded-xl 
+            data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
+            data-[state=checked]:bg-[#0389FF] ">Canada</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Select value={formData.state} onValueChange={(value) => handleSelectChange('state', value)}>
+                <SelectTrigger className="bg-white/80 rounded-xl">
+                  <SelectValue placeholder="Select your state" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="maharashtra" className="bg-white text-black rounded-xl 
+            data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
+            data-[state=checked]:bg-[#0389FF]">Maharashtra</SelectItem>
+                  <SelectItem value="karnataka" className="bg-white text-black rounded-xl 
+            data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
+            data-[state=checked]:bg-[#0389FF]">Karnataka</SelectItem>
+                  <SelectItem value="tamil-nadu" className="bg-white text-black rounded-xl 
+            data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
+            data-[state=checked]:bg-[#0389FF]">Tamil Nadu</SelectItem>
+                  <SelectItem value="gujarat" className="bg-white text-black rounded-xl 
+            data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
+            data-[state=checked]:bg-[#0389FF]">Gujarat</SelectItem>
+                  <SelectItem value="delhi" className="bg-white text-black rounded-xl 
+            data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
+            data-[state=checked]:bg-[#0389FF]">Delhi</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex gap-2">
+              <Input
+                placeholder="Enter your city"
+                name="city"
+                value={formData.city}
+                onChange={handleChange}
+                className="bg-white/80 rounded-xl flex-1"
+                required
+              />
+              <Input
+                placeholder="Pincode"
+                name="pincode"
+                value={formData.pincode}
+                onChange={handleChange}
+                className="bg-white/80 rounded-xl w-32"
+                required
+              />
             </div>
             
             <div>
@@ -345,43 +380,51 @@ const PartnerInstitutionPortal = () => {
                 value={formData.addressLine1}
                 onChange={handleChange}
                 className="bg-white/80 rounded-xl"
+                required
               />
             </div>
             
             <div>
               <Input
-                placeholder="Address Line 2"
+                placeholder="Address Line 2 (Optional)"
                 name="addressLine2"
                 value={formData.addressLine2}
                 onChange={handleChange}
                 className="bg-white/80 rounded-xl"
               />
             </div>
-            
+          </div>
+        );
+
+      case 3:
+        return (
+          <div className="space-y-4">
+            <div className="text-right text-sm text-gray-600 mb-4">
+              Account & Professional Details
+            </div>
+
             <div>
-              <Select value={formData.country} onValueChange={(value) => handleSelectChange('country', value)}>
-                <SelectTrigger className="bg-white/80 rounded-xl">
-                  <SelectValue placeholder="Select your country" />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  <SelectItem value="India"className="bg-white text-black rounded-xl 
-            data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
-            data-[state=checked]:bg-[#0389FF] data-[state=checked]:text-white"
->India</SelectItem>
-                  <SelectItem value="USA"className="bg-white text-black rounded-xl 
-            data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
-            data-[state=checked]:bg-[#0389FF] data-[state=checked]:text-white"
->United States</SelectItem>
-                  <SelectItem value="UK"className="bg-white text-black rounded-xl 
-            data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
-            data-[state=checked]:bg-[#0389FF] data-[state=checked]:text-white"
->United Kingdom</SelectItem>
-                  <SelectItem value="Canada"className="bg-white text-black rounded-xl 
-            data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
-            data-[state=checked]:bg-[#0389FF] data-[state=checked]:text-white"
->Canada</SelectItem>
-                </SelectContent>
-              </Select>
+              <Input
+                placeholder="Email Address"
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                className="bg-white/80 rounded-xl"
+                required
+              />
+            </div>
+
+            <div>
+              <Input
+                placeholder="Create Password"
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                className="bg-white/80 rounded-xl"
+                required
+              />
             </div>
 
             <div className="flex gap-2">
@@ -391,6 +434,7 @@ const PartnerInstitutionPortal = () => {
                 value={formData.phone}
                 onChange={handleChange}
                 className="bg-white/80 rounded-xl flex-1"
+                required
               />
               <Button 
                 type="button" 
@@ -398,57 +442,29 @@ const PartnerInstitutionPortal = () => {
                 className="bg-[#0389FF] hover:bg-[#0389FF]/90 rounded-xl"
                 disabled={!formData.phone || formData.phone.length < 10}
               >
-                Send OTP
+                {otpSent ? "Resend OTP" : "Send OTP"}
               </Button>
             </div>
+            
             {otpSent && (
               <div className="bg-yellow-100 p-3 rounded-xl flex items-center justify-between">
-                <span className="text-sm">⚠️ OTP sent to entered number</span>
+                <span className="text-sm">⚠️ OTP sent to {formData.phone}</span>
               </div>
             )}
             
             {otpSent && (
               <div>
                 <Input
-                  placeholder="Enter OTP"
+                  placeholder="Enter 6-digit OTP"
                   name="otp"
                   value={formData.otp}
                   onChange={handleChange}
                   className="bg-white/80 rounded-xl"
+                  maxLength={6}
+                  required
                 />
               </div>
             )}
-            <div>
-              <Input
-                placeholder="Email Address"
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                className="bg-white/80 rounded-xl"
-              />
-            </div>
-            
-          </div>
-        );
-
-      case 3:
-        return (
-          <div className="space-y-4">
-            <div className="text-right text-sm text-gray-600 mb-4">
-              Teaching Details
-            </div>
-
-            <div>
-              <Input
-                placeholder="Password"
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                className="bg-white/80 rounded-xl"
-              />
-            </div>
 
             <div>
               <Select value={formData.topic} onValueChange={(value) => handleSelectChange('topic', value)}>
@@ -458,28 +474,22 @@ const PartnerInstitutionPortal = () => {
                 <SelectContent className="rounded-xl">
                   <SelectItem value="programming" className="bg-white text-black rounded-xl 
             data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
-            data-[state=checked]:bg-[#0389FF] data-[state=checked]:text-white"
->Programming & Coding</SelectItem>
-                  <SelectItem value="data-science"className="bg-white text-black rounded-xl 
+            data-[state=checked]:bg-[#0389FF]">Programming & Coding</SelectItem>
+                  <SelectItem value="data-science" className="bg-white text-black rounded-xl 
             data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
-            data-[state=checked]:bg-[#0389FF] data-[state=checked]:text-white"
->Data Science</SelectItem>
-                  <SelectItem value="ai-ml"className="bg-white text-black rounded-xl 
+            data-[state=checked]:bg-[#0389FF]">Data Science</SelectItem>
+                  <SelectItem value="ai-ml" className="bg-white text-black rounded-xl 
             data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
-            data-[state=checked]:bg-[#0389FF] data-[state=checked]:text-white"
->AI & Machine Learning</SelectItem>
-                  <SelectItem value="robotics"className="bg-white text-black rounded-xl 
+            data-[state=checked]:bg-[#0389FF]">AI & Machine Learning</SelectItem>
+                  <SelectItem value="robotics" className="bg-white text-black rounded-xl 
             data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
-            data-[state=checked]:bg-[#0389FF] data-[state=checked]:text-white"
->Robotics</SelectItem>
-                  <SelectItem value="web-development"className="bg-white text-black rounded-xl 
+            data-[state=checked]:bg-[#0389FF]">Robotics</SelectItem>
+                  <SelectItem value="web-development" className="bg-white text-black rounded-xl 
             data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
-            data-[state=checked]:bg-[#0389FF] data-[state=checked]:text-white"
->Web Development</SelectItem>
-                  <SelectItem value="mobile-development"className="bg-white text-black rounded-xl 
+            data-[state=checked]:bg-[#0389FF]">Web Development</SelectItem>
+                  <SelectItem value="mobile-development" className="bg-white text-black rounded-xl 
             data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
-            data-[state=checked]:bg-[#0389FF] data-[state=checked]:text-white"
->Mobile Development</SelectItem>
+            data-[state=checked]:bg-[#0389FF]">Mobile Development</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -492,28 +502,22 @@ const PartnerInstitutionPortal = () => {
                 <SelectContent className="rounded-xl">
                   <SelectItem value="education" className="bg-white text-black rounded-xl 
             data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
-            data-[state=checked]:bg-[#0389FF] data-[state=checked]:text-white"
->Education</SelectItem>
+            data-[state=checked]:bg-[#0389FF]">Education</SelectItem>
                   <SelectItem value="healthcare" className="bg-white text-black rounded-xl 
             data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
-            data-[state=checked]:bg-[#0389FF] data-[state=checked]:text-white"
->Healthcare</SelectItem>
-                  <SelectItem value="finance"className="bg-white text-black rounded-xl 
+            data-[state=checked]:bg-[#0389FF]">Healthcare</SelectItem>
+                  <SelectItem value="finance" className="bg-white text-black rounded-xl 
             data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
-            data-[state=checked]:bg-[#0389FF] data-[state=checked]:text-white"
->Finance</SelectItem>
-                  <SelectItem value="technology"className="bg-white text-black rounded-xl 
+            data-[state=checked]:bg-[#0389FF]">Finance</SelectItem>
+                  <SelectItem value="technology" className="bg-white text-black rounded-xl 
             data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
-            data-[state=checked]:bg-[#0389FF] data-[state=checked]:text-white"
->Technology</SelectItem>
-                  <SelectItem value="manufacturing"className="bg-white text-black rounded-xl 
+            data-[state=checked]:bg-[#0389FF]">Technology</SelectItem>
+                  <SelectItem value="manufacturing" className="bg-white text-black rounded-xl 
             data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
-            data-[state=checked]:bg-[#0389FF] data-[state=checked]:text-white"
->Manufacturing</SelectItem>
+            data-[state=checked]:bg-[#0389FF]">Manufacturing</SelectItem>
                   <SelectItem value="agriculture" className="bg-white text-black rounded-xl 
             data-[highlighted]:bg-white data-[highlighted]:text-black data-[highlighted]:rounded-xl 
-            data-[state=checked]:bg-[#0389FF] data-[state=checked]:text-white"
->Agriculture</SelectItem>
+            data-[state=checked]:bg-[#0389FF]">Agriculture</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -554,8 +558,8 @@ const PartnerInstitutionPortal = () => {
           
           <p className="text-gray-600 text-sm">
             {currentStep === 1 && "Enter your company details to proceed further"}
-            {currentStep === 2 && "Enter your contact & address details to proceed further"}
-            {currentStep === 3 && "Accept terms and conditions to complete signup"}
+            {currentStep === 2 && "Enter your address details to proceed further"}
+            {currentStep === 3 && "Complete your account setup and verify details"}
           </p>
         </div>
 
@@ -590,7 +594,7 @@ const PartnerInstitutionPortal = () => {
               <Button
                 type="submit"
                 className="bg-[#0389FF] hover:bg-[#0389FF]/90 text-white px-6 rounded-xl"
-                disabled={!formData.acceptTerms || registerMutation.isPending}
+                disabled={!formData.acceptTerms || registerMutation.isPending || (otpSent && !formData.otp)}
               >
                 {registerMutation.isPending ? "SIGNING UP..." : "SIGN UP"}
               </Button>
