@@ -4,7 +4,7 @@ import { Button } from '@/components1/ui/button';
 import { Input } from '@/components1/ui/input';
 import { Card } from '@/components1/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components1/ui/select';
-import { ArrowLeft, Share2, Check, AlertTriangle, ChevronLeft, ChevronRight, Send } from 'lucide-react';
+import { ArrowLeft, Share2, Check, AlertTriangle, ChevronLeft, ChevronRight, Send, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useMutation } from '@tanstack/react-query';
@@ -163,6 +163,21 @@ const InstitutionBookingFlow = () => {
         toast.error("Please fill all required fields");
         return;
       }
+    } else if (currentStep === 4) {
+      if (!selectedDate) {
+        toast.error("Please select a date");
+        return;
+      }
+      if (!formData.selectedTime) {
+        toast.error("Please select a time slot");
+        return;
+      }
+      
+      // FIX: Check if selected time is not in the past for today
+      if (isTimeSlotPast(formData.selectedTime)) {
+        toast.error("Please select a future time slot");
+        return;
+      }
     }
 
     if (currentStep === 4) {
@@ -208,15 +223,47 @@ const InstitutionBookingFlow = () => {
     updateFormData('otpVerified', true);
   };
 
-  // Handle calendar date selection and sync with dropdown
-  const handleDateSelect = (date: Date) => {
-    setSelectedDate(date);
-    updateFormData('selectedDate', date);
+  // FIX: Helper function to format date consistently
+  const formatDateForComparison = (date: Date) => {
+    return date.getFullYear() + '-' + 
+           String(date.getMonth() + 1).padStart(2, '0') + '-' + 
+           String(date.getDate()).padStart(2, '0');
   };
 
-  // Handle dropdown date selection and sync with calendar
-  const handleDropdownDateSelect = (value: string) => {
-    const date = new Date(value);
+  // FIX: Helper function to check if a time slot is in the past for today
+  const isTimeSlotPast = (timeSlot: string) => {
+    if (!selectedDate) return false;
+    
+    const today = new Date();
+    const isToday = selectedDate.toDateString() === today.toDateString();
+    
+    if (!isToday) return false; // If not today, no time slots are past
+    
+    // Convert time slot to 24-hour format for comparison
+    const [time, period] = timeSlot.split(' ');
+    const [hours, minutes] = time.split(':').map(Number);
+    
+    let hour24 = hours;
+    if (period === 'PM' && hours !== 12) {
+      hour24 = hours + 12;
+    } else if (period === 'AM' && hours === 12) {
+      hour24 = 0;
+    }
+    
+    // Create a date object for the time slot
+    const timeSlotDate = new Date();
+    timeSlotDate.setHours(hour24, minutes, 0, 0);
+    
+    // Add 30 minutes buffer to current time
+    const currentTimeWithBuffer = new Date();
+    currentTimeWithBuffer.setMinutes(currentTimeWithBuffer.getMinutes() + 30);
+    
+    return timeSlotDate <= currentTimeWithBuffer;
+  };
+
+  // FIX: Updated handleDateSelect to properly sync with dropdown
+  const handleDateSelect = (date: Date) => {
+    console.log('Calendar selected:', date.toDateString());
     setSelectedDate(date);
     updateFormData('selectedDate', date);
     
@@ -224,7 +271,23 @@ const InstitutionBookingFlow = () => {
     setCurrentMonth(new Date(date.getFullYear(), date.getMonth()));
   };
 
-  // Generate available dates for dropdown (next 30 days only)
+  // FIX: Updated handleDropdownDateSelect to properly sync with calendar
+  const handleDropdownDateSelect = (value: string) => {
+    console.log('Dropdown selected value:', value);
+    
+    // Parse the date properly to avoid timezone issues
+    const [year, month, day] = value.split('-').map(Number);
+    const date = new Date(year, month - 1, day); // month is 0-indexed in Date constructor
+    
+    console.log('Dropdown selected date:', date.toDateString());
+    setSelectedDate(date);
+    updateFormData('selectedDate', date);
+    
+    // Update calendar month to show the selected date
+    setCurrentMonth(new Date(date.getFullYear(), date.getMonth()));
+  };
+
+  // FIX: Updated generateAvailableDates to use consistent date formatting
   const generateAvailableDates = () => {
     const dates = [];
     const today = new Date();
@@ -238,7 +301,7 @@ const InstitutionBookingFlow = () => {
       // Only include dates within one month
       if (date <= oneMonthFromToday) {
         dates.push({
-          value: date.toISOString().split('T')[0],
+          value: formatDateForComparison(date), // Use consistent formatting
           label: date.toLocaleDateString('en-US', { 
             weekday: 'long', 
             year: 'numeric', 
@@ -252,11 +315,8 @@ const InstitutionBookingFlow = () => {
     return dates;
   };
 
-  const calculatePrice = () => {
-    return formData.plan === 'Premium' ? 40000 : 20000;
-  };
 
-  // Payment handler using backend logic
+
   const handlePayment = useCallback(async () => {
     try {
       const rzrpyInit = await initializeRazorpay();
@@ -542,6 +602,16 @@ const InstitutionBookingFlow = () => {
     </div>
   );
 
+  const calculatePrice = () => {
+    // Institution pricing based on plan selection
+    if (formData.plan === 'Basics') {
+      return 20000; // ₹20,000 for Basics plan
+    } else if (formData.plan === 'Premium') {
+      return 40000; // ₹40,000 for Premium plan
+    }
+    return 0; // Default if no plan selected
+  };
+
   const renderStep3 = () => (
     <div className="space-y-6">
       <div>
@@ -652,128 +722,243 @@ const InstitutionBookingFlow = () => {
     oneMonthFromToday.setMonth(today.getMonth() + 1);
 
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Calendar */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
-              className="p-2"
-              aria-label="Previous month"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <h3 className="font-medium">
-              {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-            </h3>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
-              className="p-2"
-              aria-label="Next month"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-7 gap-1 mb-4 text-center text-sm text-gray-500">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-              <div key={day} className="p-2">{day}</div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-7 gap-1">
-            {Array.from({ length: 35 }, (_, i) => {
-              const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), i - 6);
-              const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
-              const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
-              const isToday = date.toDateString() === new Date().toDateString();
-              const isPastDate = date < new Date(new Date().setHours(0, 0, 0, 0));
-              const isAfterOneMonth = date > oneMonthFromToday;
-              const isDisabled = !isCurrentMonth || isPastDate || isAfterOneMonth;
-              
-              return (
-                <button
-                  key={i}
-                  onClick={() => {
-                    if (!isDisabled) {
-                      handleDateSelect(date);
-                    }
-                  }}
-                  className={`p-2 text-sm rounded-lg transition-colors ${
-                    isDisabled
-                      ? 'text-gray-300 cursor-not-allowed'
-                      : isSelected
-                        ? 'bg-blue-500 text-white'
-                        : isToday
-                          ? 'bg-blue-100 text-blue-600'
-                          : 'hover:bg-gray-100'
-                  }`}
-                  disabled={isDisabled}
-                  aria-label={`Select date ${date.getDate()}`}
-                >
-                  {date.getDate()}
-                </button>
-              );
-            })}
-          </div>
-          
-          <div className="mt-4 text-xs text-gray-500 text-center">
-            Available dates: Today to {oneMonthFromToday.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
-          </div>
-        </div>
-
-        {/* Right side */}
-        <div className="space-y-6">
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Calendar */}
           <div>
-            <label htmlFor="date-select" className="block text-sm font-medium text-gray-700 mb-2">
-              Select Date
-            </label>
-            <Select 
-              value={selectedDate ? selectedDate.toISOString().split('T')[0] : ''} 
-              onValueChange={handleDropdownDateSelect}
-            >
-              <SelectTrigger id="date-select" className="w-full h-12 bg-gray-100 border-0 text-gray-500">
-                <SelectValue placeholder="Select Date" />
-              </SelectTrigger>
-              <SelectContent>
-                {generateAvailableDates().map((date) => (
-                  <SelectItem key={date.value} value={date.value}>
-                    {date.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            <div className="flex items-center justify-between mb-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
+                className="p-2"
+                aria-label="Previous month"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <h3 className="font-medium">
+                {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              </h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
+                className="p-2"
+                aria-label="Next month"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
 
-          <div>
-            <h4 className="font-medium text-gray-900 mb-4">Available Time</h4>
-            <div className="grid grid-cols-2 gap-3">
-              {timeSlots.map((time) => (
-                <button
-                  key={time}
-                  onClick={() => updateFormData('selectedTime', time)}
-                  className={`p-3 text-sm rounded-lg border transition-colors ${
-                    formData.selectedTime === time
-                      ? 'bg-blue-500 text-white border-blue-500'
-                      : 'bg-gray-100 text-gray-700 border-gray-200 hover:border-gray-300'
-                  }`}
-                  aria-label={`Select time ${time}`}
-                >
-                  {time}
-                </button>
+            <div className="grid grid-cols-7 gap-1 mb-4 text-center text-sm text-gray-500">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                <div key={day} className="p-2">{day}</div>
               ))}
+            </div>
+
+            {/* FIX: Corrected calendar grid generation */}
+            <div className="grid grid-cols-7 gap-1">
+              {(() => {
+                const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+                const startDate = new Date(firstDay);
+                startDate.setDate(startDate.getDate() - firstDay.getDay()); // Go to start of week
+                
+                const days = [];
+                const currentDate = new Date(startDate);
+                
+                // Generate 42 days (6 weeks) to fill the calendar grid
+                for (let i = 0; i < 42; i++) {
+                  const date = new Date(currentDate);
+                  const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
+                  
+                  // FIX: Better date comparison for selection
+                  const isSelected = selectedDate && 
+                    formatDateForComparison(date) === formatDateForComparison(selectedDate);
+                  
+                  const isToday = formatDateForComparison(date) === formatDateForComparison(new Date());
+                  const isPastDate = date < new Date(new Date().setHours(0, 0, 0, 0));
+                  const isAfterOneMonth = date > oneMonthFromToday;
+                  const isDisabled = !isCurrentMonth || isPastDate || isAfterOneMonth;
+                  
+                  days.push(
+                    <button
+                      key={i}
+                      onClick={() => {
+                        if (!isDisabled) {
+                          handleDateSelect(date);
+                        }
+                      }}
+                      className={`p-2 text-sm rounded-lg transition-colors ${
+                        isDisabled
+                          ? 'text-gray-300 cursor-not-allowed'
+                          : isSelected
+                            ? 'bg-blue-500 text-white'
+                            : isToday
+                              ? 'bg-blue-100 text-blue-600 font-semibold'
+                              : isCurrentMonth
+                                ? 'hover:bg-gray-100 text-gray-900'
+                                : 'text-gray-400'
+                      }`}
+                      disabled={isDisabled}
+                      aria-label={`Select date ${date.getDate()}`}
+                    >
+                      {date.getDate()}
+                    </button>
+                  );
+                  
+                  currentDate.setDate(currentDate.getDate() + 1);
+                }
+                
+                return days;
+              })()}
+            </div>
+            
+            <div className="mt-4 text-xs text-gray-500 text-center">
+              Available dates: Today to {oneMonthFromToday.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
             </div>
           </div>
 
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start space-x-3">
-            <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-            <span className="text-yellow-800 text-sm">
-              After payment, your session will be booked and a Meet link will be shared instantly.
-            </span>
+          {/* Right side */}
+          <div className="space-y-6">
+            <div>
+              <label htmlFor="date-select" className="block text-sm font-medium text-gray-700 mb-2">
+                Select Date
+              </label>
+              {/* FIX: Updated Select with proper value synchronization */}
+              <Select 
+                value={selectedDate ? formatDateForComparison(selectedDate) : ''} 
+                onValueChange={handleDropdownDateSelect}
+              >
+                <SelectTrigger id="date-select" className="w-full h-12 bg-gray-100 border-0 text-gray-700">
+                  <SelectValue placeholder="Select Date" />
+                </SelectTrigger>
+                <SelectContent>
+                  {generateAvailableDates().map((date) => (
+                    <SelectItem key={date.value} value={date.value}>
+                      {date.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              {/* FIX: Debug info (remove in production) */}
+              {selectedDate && (
+                <div className="mt-2 text-xs text-gray-500">
+                  Selected: {selectedDate.toDateString()} | Formatted: {formatDateForComparison(selectedDate)}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h4 className="font-medium text-gray-900 mb-4">Available Time</h4>
+              
+              {/* FIX: Show info message for today's date */}
+              {selectedDate && formatDateForComparison(selectedDate) === formatDateForComparison(today) && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                  <p className="text-blue-800 text-sm flex items-center">
+                    <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
+                    For today's session, only future time slots are available (30 min advance booking required)
+                  </p>
+                </div>
+              )}
+              
+              <div className="grid grid-cols-2 gap-3">
+                {timeSlots.map((time) => {
+                  const isPastTime = isTimeSlotPast(time);
+                  const isSelected = formData.selectedTime === time;
+                  
+                  return (
+                    <button
+                      key={time}
+                      onClick={() => {
+                        if (!isPastTime) {
+                          updateFormData('selectedTime', time);
+                        }
+                      }}
+                      disabled={isPastTime}
+                      className={`p-3 text-sm rounded-lg border transition-colors ${
+                        isPastTime
+                          ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-50'
+                          : isSelected
+                            ? 'bg-blue-500 text-white border-blue-500'
+                            : 'bg-gray-100 text-gray-700 border-gray-200 hover:border-gray-300 hover:bg-white'
+                      }`}
+                      aria-label={`Select time ${time}`}
+                    >
+                      <span>{time}</span>
+                      {isPastTime && (
+                        <div className="text-xs text-gray-400 mt-1">Past</div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              
+              {/* FIX: Show message if no available time slots for today */}
+              {selectedDate && 
+               formatDateForComparison(selectedDate) === formatDateForComparison(today) && 
+               timeSlots.every(time => isTimeSlotPast(time)) && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mt-4">
+                  <p className="text-orange-800 text-sm text-center">
+                    ⏰ No more time slots available for today. Please select tomorrow or a future date.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start space-x-3">
+              <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+              <span className="text-yellow-800 text-sm">
+                After payment, your session will be booked and a Meet link will be shared instantly.
+              </span>
+            </div>
+            
+            {/* FIX: Add payment summary for institution booking */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+              <h4 className="text-lg font-semibold text-gray-900 mb-4">Booking Summary</h4>
+              
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Institution:</span>
+                  <span className="font-medium">{formData.schoolName || 'Not selected'}</span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Selected Date:</span>
+                  <span className="font-medium">
+                    {selectedDate ? selectedDate.toLocaleDateString('en-US', { 
+                      weekday: 'short', 
+                      month: 'short', 
+                      day: 'numeric' 
+                    }) : 'Not selected'}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Selected Time:</span>
+                  <span className="font-medium">{formData.selectedTime || 'Not selected'}</span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Selected Plan:</span>
+                  <span className="font-medium">{formData.plan} Plan</span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Students:</span>
+                  <span className="font-medium">{formData.numberOfStudents || 'Not selected'}</span>
+                </div>
+                
+                <div className="border-t pt-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-lg font-semibold">Amount to Pay:</span>
+                    <span className="text-2xl font-bold text-blue-600">
+                      ₹{calculatePrice().toLocaleString()}.00
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
