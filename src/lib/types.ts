@@ -159,6 +159,8 @@ export type PartnerProfileType = {
   gst: string | null;
   address: AddressType | null;
   account: AccountType | null;
+  logo : string | null;
+  digitalSign : string| null;
 };
 
 export type HomeCoursesType = {
