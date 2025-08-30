@@ -196,13 +196,22 @@ const Courses = () => {
   // Local state
   const [search, setSearch] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
+  const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
 
   // Filter states
   const [sectorFilters, setSectorFilters] = useState<FilterOption[]>(INITIAL_SECTOR_FILTERS);
   const [courseTypeFilters, setCourseTypeFilters] = useState<FilterOption[]>(INITIAL_COURSE_TYPE_FILTERS);
   const [startDateFilters, setStartDateFilters] = useState<FilterOption[]>(INITIAL_DATE_FILTERS);
   const [modeFilters, setModeFilters] = useState<FilterOption[]>(INITIAL_MODE_FILTERS);
+
+  // FIX: Auto-expand all months when trainings data is loaded
+  useEffect(() => {
+    if (trainings && Object.keys(trainings).length > 0) {
+      const allMonths = Object.keys(trainings);
+      setExpandedMonths(new Set(allMonths));
+      console.log('Auto-expanding all months:', allMonths);
+    }
+  }, [trainings]);
 
   // FIX: Improved sync for course type filters with URL parameters
   useEffect(() => {
@@ -300,7 +309,19 @@ const Courses = () => {
   };
 
   const toggleMonthExpansion = (month: string) => {
-    setExpandedMonth(expandedMonth === month ? null : month);
+    setExpandedMonths(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(month)) {
+        newSet.delete(month);
+      } else {
+        newSet.add(month);
+      }
+      return newSet;
+    });
+  };
+
+  const isMonthExpanded = (month: string) => {
+    return expandedMonths.has(month);
   };
 
   /**
@@ -740,38 +761,48 @@ const Courses = () => {
             <div key={month} className="mb-8">
               {/* Month Header */}
               <motion.div 
-                className="flex items-center justify-between cursor-pointer mb-4"
+                className="flex items-center justify-between cursor-pointer mb-4 p-3 rounded-lg hover:bg-gray-100 transition-colors"
                 onClick={() => toggleMonthExpansion(month)}
                 whileHover={{ x: 5 }}
+                whileTap={{ scale: 0.98 }}
               >
-                <h3 className="text-xl font-medium text-gray-400">{month}</h3>
-                {expandedMonth === month ? (
-                  <ChevronUp className="h-5 w-5 text-gray-400" />
-                ) : (
-                  <ChevronDown className="h-5 w-5 text-gray-400" />
-                )}
+                <div className="flex items-center space-x-3">
+                  <h3 className="text-xl font-medium text-gray-700">{month}</h3>
+                  <span className="bg-blue-100 text-blue-600 text-sm px-2 py-1 rounded-full font-medium">
+                    {monthTrainings.length} course{monthTrainings.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                <motion.div
+                  animate={{ rotate: isMonthExpanded(month) ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="p-1 rounded-full hover:bg-gray-200"
+                  title={isMonthExpanded(month) ? 'Click to collapse' : 'Click to expand'}
+                >
+                  <ChevronDown className="h-5 w-5 text-gray-500" />
+                </motion.div>
               </motion.div>
               
-              {/* Course Cards */}
+              {/* Course Cards - FIX: Update animation to start expanded */}
               <AnimatePresence>
-                {(expandedMonth === month || expandedMonth === null) && (
+                {isMonthExpanded(month) && (
                   <motion.div
-                    initial={{ opacity: 0, height: 0 }}
+                    initial={{ opacity: 1, height: 'auto' }} // FIX: Start expanded
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="space-y-4"
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                    className="space-y-4 overflow-hidden"
                   >
-                    {monthTrainings.map((training) => (
+                    {monthTrainings.map((training, index) => (
                       <motion.div
                         key={training.id}
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={{ opacity: 1, y: 0 }} // FIX: Start visible
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3 }}
+                        transition={{ duration: 0.3, delay: index * 0.05 }}
                         whileHover={{ scale: 1.01 }}
                       >
                         <Link to={`/training/${training.id}`}>
                           <Card className="bg-white border border-gray-200 hover:shadow-lg transition-shadow cursor-pointer overflow-hidden">
+                            {/* ...existing card content... */}
                             <CardContent className="p-0">
                               <div className="flex flex-col md:flex-row">
                                 {/* Course Image */}
