@@ -92,16 +92,6 @@ const PartnerRole = () => {
                     </div>
                   </Link>
                 </div>
-
-                {/* Back to Login */}
-                <div className="text-center mt-8">
-                  <p className="text-sm text-gray-600">
-                    Already have an account?{" "}
-                    <Link to="/login" className="text-blue-600 hover:text-blue-700 hover:underline font-semibold">
-                      Login
-                    </Link>
-                  </p>
-                </div>
               </div>
             </div>
           </div>
