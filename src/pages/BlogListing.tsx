@@ -141,26 +141,7 @@ const BlogListing: React.FC = () => {
               Blog Categories
             </h3>
             <i className="text-gray-400">No data</i>
-            {/* <ul className="space-y-2">
-                {[
-                  "Physics",
-                  "Chemistry",
-                  "Biology",
-                  "Environmental Science",
-                  "Astronomy",
-                  "Artificial Intelligence",
-                  "Software Development",
-                  "Cybersecurity",
-                  "Data Science",
-                  "Robotics",
-                  "Civil Engineering",
-                  "Mechanical Engineering",
-                ].map((category, index) => (
-                  <li key={index} className="text-sm text-gray-600">
-                    {category}
-                  </li>
-                ))}
-              </ul> */}
+            {/* Future categories can be listed here */}
           </div>
         </div>
       </div>

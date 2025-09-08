@@ -984,7 +984,7 @@ const Courses = () => {
               </div>
             </div>
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button className="bg-[#0389FF] hover:bg-[#0389FF]/90 text-white px-8 py-3 text-lg">
+              <Button onClick={() => navigate("/career-counselling")} className="bg-[#0389FF] hover:bg-[#0389FF]/90 text-white px-8 py-3 text-lg">
                 BOOK COUNSELLING
               </Button>
             </motion.div>
