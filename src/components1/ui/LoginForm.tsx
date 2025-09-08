@@ -2,6 +2,7 @@ import { Button } from "@/components1/ui/button";
 import { Input } from "@/components1/ui/input";
 import { Label } from "@/components1/ui/label";
 import { Link } from "react-router-dom";
+import { account } from "../../appwrite";
 
 interface LoginFormProps {
   email: string;
@@ -21,6 +22,18 @@ const LoginForm: React.FC<LoginFormProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit();
+  };
+
+  const handleLoginWithGoogle = async () => {
+    try {
+      await account.createOAuth2Session(
+        'google' as any,
+        "http://localhost:5173/dashboard", // Success redirect URL
+        "http://localhost:5173/login"      // Failure redirect URL
+      );
+    } catch (error) {
+      console.error("Google OAuth login failed:", error);
+    }
   };
 
   return (
@@ -109,6 +122,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
         {/* Google */}
         <Button
           variant="outline"
+          onClick={handleLoginWithGoogle}
           className="h-10 w-10 rounded-full bg-white border-gray-200 hover:bg-gray-50 p-0"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24">
