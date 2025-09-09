@@ -24,6 +24,8 @@ type AdminInsitutionPlans = {
   contactMobile: string;
   contactEmail: string;
   studentsCount: number | null;
+  selectedDate: string;
+  selectedTime: string;
   address: {
     id: number;
     addressLine1: string;
@@ -125,7 +127,9 @@ export default function AdminInstitutionRegistrations() {
               { render: "Address" },
               { render: "Contact" },
               { render: "Plan" },
+              { render: "Selected Date & Time" },
               { render: "Details" },
+             
             ]}
             classNames={{
               root: "bg-white rounded-lg shadow",
@@ -167,6 +171,9 @@ export default function AdminInstitutionRegistrations() {
                 },
                 {
                   render: r.transactions[0].plan,
+                },
+                {
+                  render : r.selectedDate + " " + r.selectedTime,
                 },
                 {
                   render: (
