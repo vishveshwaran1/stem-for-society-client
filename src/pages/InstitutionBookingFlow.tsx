@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import Header from '@/components1/Header';
 import { Button } from '@/components1/ui/button';
 import { Input } from '@/components1/ui/input';
@@ -16,7 +16,17 @@ import { mutationErrorHandler, initializeRazorpay } from '../lib/utils';
 import { RZPY_KEYID } from '../Constants';
 import { useShare } from '@/hooks/useShare';
 import { SharePopup } from '@/components1/ui/SharePopup';
+import { firebaseApp } from '../firebase.config';
+import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from "firebase/auth";
+import { on } from 'events';
 
+// FIXED: Declare global types for Firebase
+declare global {
+  interface Window {
+    recaptchaVerifier?: RecaptchaVerifier;
+    confirmationResult?: ConfirmationResult;
+  }
+}
 
 // Backend types from Pricing.tsx
 type CreatePaymentResponse = {
@@ -37,6 +47,8 @@ type InstitutionSignUpForm = {
   state: string;
   pincode: string;
   plan?: "Basics" | "Premium";
+  selectedDate?: string;
+  selectedTime?: string;
 };
 
 // Frontend form data type (includes UI-only fields)
@@ -53,7 +65,8 @@ interface FormData {
   state: string;
   pincode: string;
   plan: "Basics" | "Premium";
-  
+  selectedDate: string;
+  selectedTime: string;
   // Frontend-only fields (not sent to backend)
   institutionName: string;
   manualInstitutionName: string;
@@ -65,8 +78,6 @@ interface FormData {
   otpSent: boolean;
   otpVerified: boolean;
   numberOfStudents: string;
-  selectedDate: Date | null;
-  selectedTime: string;
 }
 
 // Custom hook for institution signup
@@ -92,6 +103,12 @@ const InstitutionBookingFlow = () => {
   const { mutateAsync, isPending } = useInstitutionSignUp();
   const { isShowing, handleShare } = useShare();
 
+  // ADDED: SMS verification states
+  const [isOtpLoading, setIsOtpLoading] = useState(false);
+  const [otpTimer, setOtpTimer] = useState(0);
+  const [canResendOtp, setCanResendOtp] = useState(true);
+  const [recaptchaInitialized, setRecaptchaInitialized] = useState(false);
+
   const [formData, setFormData] = useState<FormData>({
     // Backend fields
     schoolName: '',
@@ -111,15 +128,47 @@ const InstitutionBookingFlow = () => {
     manualInstitutionName: '',
     firstName: '',
     lastName: '',
-    country: '',
+    country: 'in', // Default to India
     mobileNumber: '',
     otp: '',
     otpSent: false,
     otpVerified: false,
     numberOfStudents: '',
-    selectedDate: null,
-    selectedTime: '4:30 PM',
+    selectedDate: '',
+    selectedTime: '',
   });
+
+  // FIXED: Initialize Firebase Auth and reCAPTCHA only when needed
+const initializeRecaptcha = useCallback(() => {
+  if (!window.recaptchaVerifier) {
+    const auth = getAuth(firebaseApp);
+    window.recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+      size: "invisible",
+      callback: (response: any) => {
+        console.log("reCAPTCHA solved:", response);
+      },
+      "expired-callback": () => {
+        toast.error("reCAPTCHA expired. Please try again.");
+      }
+    });
+  }
+}, []);
+
+
+  // ADDED: OTP timer effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (otpTimer > 0) {
+      interval = setInterval(() => {
+        setOtpTimer((prev) => prev - 1);
+      }, 1000);
+    } else if (otpTimer === 0 && formData.otpSent) {
+      setCanResendOtp(true);
+    }
+    return () => clearInterval(interval);
+  }, [otpTimer, formData.otpSent]);
+
+  // FIXED: Cleanup on unmount
 
   const steps = [
     { number: 1, title: 'Institution Information' },
@@ -173,7 +222,7 @@ const InstitutionBookingFlow = () => {
         return;
       }
       
-      // FIX: Check if selected time is not in the past for today
+      // Check if selected time is not in the past for today
       if (isTimeSlotPast(formData.selectedTime)) {
         toast.error("Please select a future time slot");
         return;
@@ -197,40 +246,14 @@ const InstitutionBookingFlow = () => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  // Handle OTP sending
-  const handleSendOTP = () => {
-    if (!formData.contactMobile) {
-      toast.error("Please enter mobile number first");
-      return;
-    }
-    // Simulate OTP sending
-    toast.success("OTP sent successfully to " + formData.contactMobile);
-    updateFormData('otpSent', true);
-  };
-
-  // Handle OTP verification
-  const handleVerifyOTP = () => {
-    if (!formData.otp) {
-      toast.error("Please enter OTP");
-      return;
-    }
-    if (formData.otp.length !== 6) {
-      toast.error("Please enter a valid 6-digit OTP");
-      return;
-    }
-    // Simulate OTP verification
-    toast.success("Mobile number verified successfully");
-    updateFormData('otpVerified', true);
-  };
-
-  // FIX: Helper function to format date consistently
+  // Helper function to format date consistently
   const formatDateForComparison = (date: Date) => {
     return date.getFullYear() + '-' + 
            String(date.getMonth() + 1).padStart(2, '0') + '-' + 
            String(date.getDate()).padStart(2, '0');
   };
 
-  // FIX: Helper function to check if a time slot is in the past for today
+  // Helper function to check if a time slot is in the past for today
   const isTimeSlotPast = (timeSlot: string) => {
     if (!selectedDate) return false;
     
@@ -261,7 +284,119 @@ const InstitutionBookingFlow = () => {
     return timeSlotDate <= currentTimeWithBuffer;
   };
 
-  // FIX: Updated handleDateSelect to properly sync with dropdown
+  // FIXED: Handle OTP sending with Firebase - with proper error handling
+// Initialize Recaptcha once
+
+
+// Send OTP
+const handleSendOTP = async () => {
+  if (!formData.contactMobile) {
+    toast.error("Please enter mobile number");
+    return;
+  }
+
+  const auth = getAuth(firebaseApp);
+  const phoneNumber = getCountryCode() + formData.contactMobile;
+
+  try {
+    if (!window.recaptchaVerifier) {
+      initializeRecaptcha();
+    }
+
+    const confirmationResult = await signInWithPhoneNumber(
+      auth,
+      phoneNumber,
+      window.recaptchaVerifier!
+    );
+    window.confirmationResult = confirmationResult;
+
+    toast.success(`OTP sent to ${formData.contactMobile}`);
+    updateFormData("otpSent", true);
+    setOtpTimer(60);
+    setCanResendOtp(false);
+  } catch (error: any) {
+    console.error("Error sending OTP:", error);
+    toast.error(error.message || "Failed to send OTP");
+  }
+};
+
+// Verify OTP
+const handleVerifyOTP = async () => {
+  if (!formData.otp) {
+    toast.error("Please enter OTP");
+    return;
+  }
+
+  try {
+    const result = await window.confirmationResult?.confirm(formData.otp);
+    if (result?.user) {
+      toast.success("Mobile number verified successfully!");
+      updateFormData("otpVerified", true);
+    }
+  } catch (error: any) {
+    console.error("OTP verification failed:", error);
+    toast.error(error.message || "Invalid OTP");
+  }
+};
+
+  // Handle OTP resending
+  const handleResendOTP = async () => {
+    if (!canResendOtp) {
+      toast.info(`Please wait ${otpTimer} seconds before resending`);
+      return;
+    }
+
+    // Reset OTP states
+    updateFormData('otp', '');
+    updateFormData('otpSent', false);
+    updateFormData('otpVerified', false);
+    
+    // Clear previous confirmation result
+    delete window.confirmationResult;
+    
+    // Reset reCAPTCHA
+    if (window.recaptchaVerifier) {
+      try {
+        window.recaptchaVerifier.clear();
+        delete window.recaptchaVerifier;
+        setRecaptchaInitialized(false);
+      } catch (error) {
+        console.error('Error clearing reCAPTCHA:', error);
+      }
+    }
+    
+    // Resend OTP
+    await handleSendOTP();
+  };
+
+  // Get country code based on selected country
+  const getCountryCode = () => {
+    const countryCodes: { [key: string]: string } = {
+      'us': '+1',
+      'in': '+91',
+      'uk': '+44',
+      'ca': '+1',
+      'au': '+61'
+    };
+    return countryCodes[formData.country] || '+91';
+  };
+
+  // Format phone number for display
+  const getFormattedPhoneNumber = () => {
+    return `${getCountryCode()} ${formData.contactMobile}`;
+  };
+
+  const calculatePrice = () => {
+    // Institution pricing based on plan selection
+    if (formData.plan === 'Basics') {
+      return 20000; // ₹20,000 for Basics plan
+    } else if (formData.plan === 'Premium') {
+      return 40000; // ₹40,000 for Premium plan
+    }
+    return 0; // Default if no plan selected
+  };
+
+  // Updated handleDateSelect to properly sync with dropdown
   const handleDateSelect = (date: Date) => {
     console.log('Calendar selected:', date.toDateString());
     setSelectedDate(date);
@@ -271,7 +406,7 @@ const InstitutionBookingFlow = () => {
     setCurrentMonth(new Date(date.getFullYear(), date.getMonth()));
   };
 
-  // FIX: Updated handleDropdownDateSelect to properly sync with calendar
+  // Updated handleDropdownDateSelect to properly sync with calendar
   const handleDropdownDateSelect = (value: string) => {
     console.log('Dropdown selected value:', value);
     
@@ -287,7 +422,7 @@ const InstitutionBookingFlow = () => {
     setCurrentMonth(new Date(date.getFullYear(), date.getMonth()));
   };
 
-  // FIX: Updated generateAvailableDates to use consistent date formatting
+  // Updated generateAvailableDates to use consistent date formatting
   const generateAvailableDates = () => {
     const dates = [];
     const today = new Date();
@@ -317,89 +452,91 @@ const InstitutionBookingFlow = () => {
 
 
 
-  const handlePayment = useCallback(async () => {
-    try {
-      const rzrpyInit = await initializeRazorpay();
-      if (!rzrpyInit) return toast.error("Unable to initialize payment!");
-
-      // Prepare data for backend (exclude frontend-only fields)
-      const backendData: InstitutionSignUpForm = {
-        schoolName: formData.schoolName,
-        contactName: formData.contactName,
-        contactMobile: formData.contactMobile,
-        contactEmail: formData.contactEmail,
-        studentsCount: parseInt(formData.numberOfStudents) || 0,
-        addressLine1: formData.addressLine1,
-        addressLine2: formData.addressLine2 || undefined,
-        city: formData.city,
-        state: formData.state,
-        pincode: formData.pincode,
-        plan: formData.plan,
-      };
-
-      const data = await mutateAsync(backendData);
-
-      console.log("🚀 ~ handlePayment ~ data:", data);
-
-      if (!data || !data.data) {
-        toast.error("Something went wrong in creating payment!");
-        return;
-      }
-      const order = data.data;
-
-      const options: RazorpayOrderOptions = {
-        key: RZPY_KEYID,
-        amount: Number(order.amount) * 100,
-        currency: "INR",
-        name: "Stem for Society",
-        description: `${formData.plan} plan purchase`,
-        image: "https://stem-4-society.netlify.app/logo-01.png",
-        order_id: order.orderId,
-        prefill: {
-          name: formData.contactName + " - " + formData.schoolName,
-          email: formData.contactEmail,
-          contact: formData.contactMobile,
-        },
-        async handler() {
-          toast.success(
-            "Payment was made successfully! We will verify the payment and will be in touch with you shortly",
-            { autoClose: false, draggable: false },
-          );
-          setCurrentStep(5); // Move to success step
-        },
-      };
-
-      // @ts-expect-error Razorpay global variable
-      const rzp: RazorpayInstance = new window.Razorpay(options);
-
-      // Razorpay event handler
-      rzp.on("payment.failed", (res) => {
-        console.log("Failure:", res);
-        toast.error("Payment failed! Reason:\n" + res.error.description, {
-          autoClose: false,
-          closeOnClick: false,
-        });
-        toast.error(
-          "Please note Order ID: " +
-            res.error.metadata.order_id +
-            "\n Payment ID: " +
-            res.error.metadata.payment_id,
-          { autoClose: false, closeOnClick: false },
-        );
-      });
-
-      rzp.open();
-    } catch (error) {
-      if (error instanceof AxiosError) {
-        if (error.status === 401) {
-          toast.error("Please login again");
+    const handlePayment = useCallback(async () => {
+      try {
+        const rzrpyInit = await initializeRazorpay();
+        if (!rzrpyInit) return toast.error("Unable to initialize payment!");
+  
+        // Prepare data for backend (exclude frontend-only fields)
+        const backendData: InstitutionSignUpForm = {
+          schoolName: formData.schoolName,
+          contactName: formData.contactName,
+          contactMobile: formData.contactMobile,
+          contactEmail: formData.contactEmail,
+          studentsCount: parseInt(formData.numberOfStudents) || 0,
+          addressLine1: formData.addressLine1,
+          addressLine2: formData.addressLine2 || undefined,
+          city: formData.city,
+          state: formData.state,
+          pincode: formData.pincode,
+          plan: formData.plan,
+          selectedDate: selectedDate.toISOString().split('T')[0], // Send only date part
+          selectedTime: formData.selectedTime,
+        };
+  
+        const data = await mutateAsync(backendData);
+  
+        console.log("🚀 ~ handlePayment ~ data:", data);
+  
+        if (!data || !data.data) {
+          toast.error("Something went wrong in creating payment!");
           return;
         }
+        const order = data.data;
+  
+        const options: RazorpayOrderOptions = {
+          key: RZPY_KEYID,
+          amount: Number(order.amount) * 100,
+          currency: "INR",
+          name: "Stem for Society",
+          description: `${formData.plan} plan purchase`,
+          image: "https://stem-4-society.netlify.app/logo-01.png",
+          order_id: order.orderId,
+          prefill: {
+            name: formData.contactName + " - " + formData.schoolName,
+            email: formData.contactEmail,
+            contact: formData.contactMobile,
+          },
+          async handler() {
+            toast.success(
+              "Payment was made successfully! We will verify the payment and will be in touch with you shortly",
+              { autoClose: false, draggable: false },
+            );
+            renderSuccess(); // Move to success step
+          },
+        };
+  
+        // @ts-expect-error Razorpay global variable
+        const rzp: RazorpayInstance = new window.Razorpay(options);
+  
+        // Razorpay event handler
+        rzp.on("payment.failed", (res) => {
+          console.log("Failure:", res);
+          toast.error("Payment failed! Reason:\n" + res.error.description, {
+            autoClose: false,
+            closeOnClick: false,
+          });
+          toast.error(
+            "Please note Order ID: " +
+              res.error.metadata.order_id +
+              "\n Payment ID: " +
+              res.error.metadata.payment_id,
+            { autoClose: false, closeOnClick: false },
+          );
+        });
+  
+        rzp.open();
+      } catch (error) {
+        if (error instanceof AxiosError) {
+          if (error.status === 401) {
+            toast.error("Please login again");
+            return;
+          }
+        }
+        console.log("🚀 ~ handlePayment ~ error:", error);
+        toast.error("Something went wrong in the payment process");
       }
-      console.log("🚀 ~ handlePayment ~ error:", error);
-      toast.error("Something went wrong in the payment process");
-    }
-  }, [formData, mutateAsync]);
+    }, [formData, mutateAsync]);
 
   const renderStepIndicator = () => (
     <div className="flex items-center justify-center space-x-8 mb-12">
@@ -518,12 +655,16 @@ const InstitutionBookingFlow = () => {
 
   const renderStep2 = () => (
     <div className="space-y-6">
+      {/* FIXED: reCAPTCHA container with better positioning */}
+      <div id="recaptcha-container" className="fixed top-0 left-0 z-50"></div>
+      
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
           placeholder="Contact Person Name *"
           value={formData.contactName}
           onChange={(e) => updateFormData('contactName', e.target.value)}
           className="h-12 bg-gray-100 border-0 placeholder:text-gray-500"
+          disabled={formData.otpVerified}
         />
         <Input
           placeholder="Contact Email *"
@@ -531,6 +672,7 @@ const InstitutionBookingFlow = () => {
           value={formData.contactEmail}
           onChange={(e) => updateFormData('contactEmail', e.target.value)}
           className="h-12 bg-gray-100 border-0 placeholder:text-gray-500"
+          disabled={formData.otpVerified}
         />
       </div>
 
@@ -538,79 +680,134 @@ const InstitutionBookingFlow = () => {
         <Select 
           value={formData.country}
           onValueChange={(value) => updateFormData('country', value)}
+          disabled={formData.otpVerified}
         >
           <SelectTrigger className="h-12 bg-gray-100 border-0 text-gray-500">
             <SelectValue placeholder="Country" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="us">United States</SelectItem>
-            <SelectItem value="in">India</SelectItem>
-            <SelectItem value="uk">United Kingdom</SelectItem>
-            <SelectItem value="ca">Canada</SelectItem>
-            <SelectItem value="au">Australia</SelectItem>
+            <SelectItem value="us">🇺🇸 United States (+1)</SelectItem>
+            <SelectItem value="in">🇮🇳 India (+91)</SelectItem>
+            <SelectItem value="uk">🇬🇧 United Kingdom (+44)</SelectItem>
+            <SelectItem value="ca">🇨🇦 Canada (+1)</SelectItem>
+            <SelectItem value="au">🇦🇺 Australia (+61)</SelectItem>
           </SelectContent>
         </Select>
         
-        <div className="md:col-span-2">
+        <div className="md:col-span-2 relative">
           <Input
             placeholder="Mobile Number *"
             value={formData.contactMobile}
-            onChange={(e) => updateFormData('contactMobile', e.target.value)}
+            onChange={(e) => {
+              // Only allow numbers and limit to 10 digits for most countries
+              const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+              updateFormData('contactMobile', value);
+            }}
             className="h-12 bg-gray-100 border-0 placeholder:text-gray-500"
+            disabled={formData.otpVerified}
+            maxLength={10}
           />
+          {formData.otpVerified && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <Check className="h-5 w-5 text-green-500" />
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="flex items-center justify-end">
-        <Button 
-          onClick={handleSendOTP}
-          disabled={!formData.contactMobile || formData.otpSent}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-8"
-        >
-          <Send className="h-4 w-4 mr-2" />
-          {formData.otpSent ? 'OTP Sent' : 'Send OTP'}
-        </Button>
-      </div>
+      {!formData.otpVerified && (
+        <div className="flex items-center justify-end">
+          <Button 
+            onClick={handleSendOTP}
+            disabled={!formData.contactMobile || formData.contactMobile.length !== 10 || isOtpLoading}
+            className={`px-8 ${formData.otpSent ? 'bg-gray-500' : 'bg-blue-500 hover:bg-blue-600'} text-white`}
+          >
+            <Send className="h-4 w-4 mr-2" />
+            {isOtpLoading ? 'Sending...' : formData.otpSent ? 'OTP Sent' : 'Send OTP'}
+          </Button>
+        </div>
+      )}
 
-      {formData.otpSent && (
+      {formData.otpSent && !formData.otpVerified && (
         <>
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start space-x-3">
-            <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-            <span className="text-yellow-800 text-sm">
-              Enter the OTP sent to your mobile number: {formData.contactMobile}
-            </span>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start space-x-3">
+            <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div className="text-blue-800 text-sm">
+              <p className="font-medium">OTP sent to {getFormattedPhoneNumber()}</p>
+              <p className="mt-1">Enter the 6-digit code you received via SMS</p>
+            </div>
           </div>
 
-          <div className="flex gap-4">
-            <Input
-              placeholder="Enter 6-digit OTP"
-              value={formData.otp}
-              onChange={(e) => updateFormData('otp', e.target.value)}
-              className="h-12 bg-gray-100 border-0 placeholder:text-gray-500"
-              maxLength={6}
-            />
-            <Button 
-              onClick={handleVerifyOTP}
-              disabled={formData.otpVerified || !formData.otp}
-              className={`px-6 ${formData.otpVerified ? 'bg-green-500' : 'bg-blue-500 hover:bg-blue-600'} text-white`}
-            >
-              {formData.otpVerified ? 'Verified ✓' : 'Verify'}
-            </Button>
+          <div className="space-y-4">
+            <div className="flex gap-4">
+              <Input
+                placeholder="Enter 6-digit OTP"
+                value={formData.otp}
+                onChange={(e) => {
+                  // Only allow numbers and limit to 6 digits
+                  const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                  updateFormData('otp', value);
+                }}
+                className="h-12 bg-gray-100 border-0 placeholder:text-gray-500"
+                maxLength={6}
+                disabled={isOtpLoading}
+              />
+              <Button 
+                onClick={handleVerifyOTP}
+                disabled={!formData.otp || formData.otp.length !== 6 || isOtpLoading}
+                className="px-6 bg-green-500 hover:bg-green-600 text-white"
+              >
+                {isOtpLoading ? 'Verifying...' : 'Verify'}
+              </Button>
+            </div>
+
+            {/* Resend OTP option */}
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-600">
+                Didn't receive the code?
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleResendOTP}
+                disabled={!canResendOtp}
+                className="text-blue-600 hover:text-blue-700 px-2"
+              >
+                {canResendOtp ? 'Resend OTP' : `Resend in ${otpTimer}s`}
+              </Button>
+            </div>
           </div>
         </>
       )}
+
+      {formData.otpVerified && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center space-x-3">
+          <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+            <Check className="h-5 w-5 text-white" />
+          </div>
+          <div className="text-green-800">
+            <p className="font-medium">Mobile number verified successfully!</p>
+            <p className="text-sm">Phone: {getFormattedPhoneNumber()}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Additional security info */}
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <div className="flex items-start space-x-3">
+          <AlertTriangle className="h-5 w-5 text-gray-500 mt-0.5 flex-shrink-0" />
+          <div className="text-gray-700 text-sm">
+            <p className="font-medium mb-2">Why do we need to verify your phone number?</p>
+            <ul className="space-y-1 text-xs">
+              <li>• To send you important session updates and reminders</li>
+              <li>• To ensure secure communication about your booking</li>
+              <li>• To prevent fraudulent bookings and protect our platform</li>
+            </ul>
+          </div>
+        </div>
+      </div>
     </div>
   );
-
-  const calculatePrice = () => {
-    // Institution pricing based on plan selection
-    if (formData.plan === 'Basics') {
-      return 20000; // ₹20,000 for Basics plan
-    } else if (formData.plan === 'Premium') {
-      return 40000; // ₹40,000 for Premium plan
-    }
-    return 0; // Default if no plan selected
-  };
 
   const renderStep3 = () => (
     <div className="space-y-6">
@@ -756,7 +953,7 @@ const InstitutionBookingFlow = () => {
               ))}
             </div>
 
-            {/* FIX: Corrected calendar grid generation */}
+            {/* Calendar grid generation */}
             <div className="grid grid-cols-7 gap-1">
               {(() => {
                 const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
@@ -771,7 +968,7 @@ const InstitutionBookingFlow = () => {
                   const date = new Date(currentDate);
                   const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
                   
-                  // FIX: Better date comparison for selection
+                  // Better date comparison for selection
                   const isSelected = selectedDate && 
                     formatDateForComparison(date) === formatDateForComparison(selectedDate);
                   
@@ -824,7 +1021,7 @@ const InstitutionBookingFlow = () => {
               <label htmlFor="date-select" className="block text-sm font-medium text-gray-700 mb-2">
                 Select Date
               </label>
-              {/* FIX: Updated Select with proper value synchronization */}
+              {/* Updated Select with proper value synchronization */}
               <Select 
                 value={selectedDate ? formatDateForComparison(selectedDate) : ''} 
                 onValueChange={handleDropdownDateSelect}
@@ -840,19 +1037,12 @@ const InstitutionBookingFlow = () => {
                   ))}
                 </SelectContent>
               </Select>
-              
-              {/* FIX: Debug info (remove in production) */}
-              {selectedDate && (
-                <div className="mt-2 text-xs text-gray-500">
-                  Selected: {selectedDate.toDateString()} | Formatted: {formatDateForComparison(selectedDate)}
-                </div>
-              )}
             </div>
 
             <div>
               <h4 className="font-medium text-gray-900 mb-4">Available Time</h4>
               
-              {/* FIX: Show info message for today's date */}
+              {/* Show info message for today's date */}
               {selectedDate && formatDateForComparison(selectedDate) === formatDateForComparison(today) && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                   <p className="text-blue-800 text-sm flex items-center">
@@ -894,7 +1084,7 @@ const InstitutionBookingFlow = () => {
                 })}
               </div>
               
-              {/* FIX: Show message if no available time slots for today */}
+              {/* Show message if no available time slots for today */}
               {selectedDate && 
                formatDateForComparison(selectedDate) === formatDateForComparison(today) && 
                timeSlots.every(time => isTimeSlotPast(time)) && (
@@ -913,7 +1103,7 @@ const InstitutionBookingFlow = () => {
               </span>
             </div>
             
-            {/* FIX: Add payment summary for institution booking */}
+            {/* Add payment summary for institution booking */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
               <h4 className="text-lg font-semibold text-gray-900 mb-4">Booking Summary</h4>
               
@@ -965,24 +1155,54 @@ const InstitutionBookingFlow = () => {
     );
   };
 
-  const renderStep5 = () => (
-    <div className="text-center">
-      <div className="bg-green-50 rounded-2xl p-16 mb-8">
-        <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
-          <Check className="h-8 w-8 text-white" />
+  const renderSuccess = () => (
+    <div className="text-center space-y-8">
+      <div className="bg-green-50 border border-green-200 rounded-2xl p-12">
+        <div className="flex flex-col items-center space-y-6">
+          <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center">
+            <Check className="h-8 w-8 text-white" />
+          </div>
+          <h2 className="text-3xl font-bold text-gray-900">Session Booked Successfully</h2>
+          <p className="text-gray-600 max-w-md">
+            Your institution session has been scheduled. A secure meeting link will be sent to your email.
+          </p>
+          
+          {/* Show booked session details */}
+          {selectedDate && formData.selectedTime && (
+            <div className="bg-white border border-green-200 rounded-lg p-4 text-left max-w-md">
+              <h4 className="font-medium text-green-900 mb-2">Session Details:</h4>
+              <p className="text-green-800 text-sm">
+                <strong>Date:</strong> {selectedDate.toLocaleDateString('en-US', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
+              </p>
+              <p className="text-green-800 text-sm">
+                <strong>Time:</strong> {formData.selectedTime}
+              </p>
+              <p className="text-green-800 text-sm">
+                <strong>Institution:</strong> {formData.schoolName}
+              </p>
+              <p className="text-green-800 text-sm">
+                <strong>Amount Paid:</strong> ₹{calculatePrice().toLocaleString()}
+              </p>
+            </div>
+          )}
         </div>
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">Payment Successful</h2>
-        <p className="text-gray-600 text-lg max-w-md mx-auto">
-          Your session has been scheduled at your selected time. A Meet link has been generated and sent to your email.
-        </p>
       </div>
       
-      <div className="flex flex-col sm:flex-row gap-4 justify-center">
-        <Button variant="outline" className="px-8 py-3">
-          Add to Calendar
+      <div className="flex justify-center space-x-4">
+        <Button 
+          variant="outline" 
+          className="px-8 h-12"
+          onClick={() => window.location.href = '/'}
+        >
+          Back to Home
         </Button>
-        <Button className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-3">
-          DOWNLOAD LINK FILE
+        <Button className="bg-[#0389FF] hover:bg-[#0389FF]/90 text-white px-8 h-12">
+          DOWNLOAD CONFIRMATION
         </Button>
       </div>
     </div>
@@ -1058,7 +1278,7 @@ const InstitutionBookingFlow = () => {
           {currentStep === 2 && renderStep2()}
           {currentStep === 3 && renderStep3()}
           {currentStep === 4 && renderStep4()}
-          {currentStep === 5 && renderStep5()}
+          {currentStep === 5 && renderSuccess()}
         </Card>
 
         {currentStep <= 4 && (
@@ -1078,7 +1298,7 @@ const InstitutionBookingFlow = () => {
             <Button 
               onClick={nextStep}
               className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-3 text-lg font-semibold h-12"
-              disabled={isPending}
+              disabled={isPending || (currentStep === 2 && !formData.otpVerified)}
             >
               {currentStep === 4 ? (isPending ? 'PROCESSING...' : 'PROCEED TO PAYMENT') : 'CONTINUE'}
             </Button>
@@ -1087,7 +1307,7 @@ const InstitutionBookingFlow = () => {
       </div>
 
       {/* Footer */}
-        <footer className="bg-blue-900 text-white py-8 mt-16">
+      <footer className="bg-blue-900 text-white py-8 mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center">
             <div className="w-10 h-10 rounded-full flex items-center justify-center mr-3">
@@ -1106,7 +1326,7 @@ const InstitutionBookingFlow = () => {
           </div>
         </div>
       </footer>
-        <SharePopup isVisible={isShowing} />
+      <SharePopup isVisible={isShowing} />
     </div>
   );
 };
