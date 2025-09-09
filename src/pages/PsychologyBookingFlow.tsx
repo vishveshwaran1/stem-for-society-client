@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import Header from '@/components1/Header';
 import { Button } from '@/components1/ui/button';
 import { Input } from '@/components1/ui/input';
@@ -8,13 +8,21 @@ import { ArrowLeft, Share2, Check, Shield, Leaf, ChevronLeft, ChevronRight, Aler
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useMutation } from '@tanstack/react-query';
-import { GenericError, GenericResponse } from '../lib/types';
+import { GenericError, GenericResponse, RazorpayOrderOptions } from '../lib/types';
 import { AxiosError } from 'axios';
 import { api } from '../lib/api';
 import { toast } from 'react-toastify';
-import { mutationErrorHandler } from '../lib/utils';
+import { mutationErrorHandler,initializeRazorpay } from '../lib/utils';
 import { useShare } from '../hooks/useShare';
-import {SharePopup} from '../components1/ui/SharePopup'
+import { SharePopup } from '../components1/ui/SharePopup';
+import { RZPY_KEYID } from '@/Constants';
+
+
+// Backend response type for payment creation
+type CreatePaymentResponse = {
+  orderId: string;
+  amount: number;
+};
 
 // Backend form data type (what gets sent to backend)
 type PsychologyBookingForm = {
@@ -26,12 +34,13 @@ type PsychologyBookingForm = {
   state: string;
   age: string;
   concerns: string;
+  selectedDate: string; // YYYY-MM-DD format
+  selectedTime: string; // "4:30 PM" format
   idCard?: File | null;
 };
 
-// All form data type 
+// Frontend form data type
 interface FormData {
-  // Backend fields
   firstName: string;
   lastName: string;
   email: string;
@@ -41,16 +50,14 @@ interface FormData {
   age: string;
   concerns: string;
   idCard: File | null;
-  
-  // Frontend-only fields (not sent to backend)
-  selectedDate: Date | null;
+  selectedDate: string; // CHANGED: Use string for consistency with backend
   selectedTime: string;
 }
 
-// Custom hook for booking psychology session
-function useBookPsychologySession() {
+// Custom hook for creating psychology payment
+function useCreatePsychologyPayment() {
   return useMutation<
-    GenericResponse,
+    GenericResponse<CreatePaymentResponse>,
     AxiosError<GenericError>,
     PsychologyBookingForm,
     unknown
@@ -70,6 +77,23 @@ function useBookPsychologySession() {
       formData.append("state", data.state);
       formData.append("age", data.age);
       formData.append("concerns", data.concerns);
+      // FIXED: Properly send date and time
+      formData.append("selectedDate", data.selectedDate);
+      formData.append("selectedTime", data.selectedTime);
+
+      console.log('Sending to backend:', {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        mobile: data.mobile,
+        city: data.city,
+        state: data.state,
+        age: data.age,
+        concerns: data.concerns,
+        selectedDate: data.selectedDate,
+        selectedTime: data.selectedTime,
+        hasIdCard: !!data.idCard
+      });
 
       const response = await api().post("/enquiry/psychology", formData, {
         headers: {
@@ -79,7 +103,6 @@ function useBookPsychologySession() {
       return response.data;
     },
     onError: (err) => mutationErrorHandler(err),
-    // REMOVE onSuccess from here!
   });
 }
 
@@ -87,11 +110,11 @@ const PsychologyBookingFlow = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const { mutate: bookSession, isPending } = useBookPsychologySession();
+  const { mutateAsync, isPending } = useCreatePsychologyPayment();
   const { isShowing, handleShare } = useShare();
+  
 
   const [formData, setFormData] = useState<FormData>({
-    // Backend fields
     firstName: '',
     lastName: '',
     email: '',
@@ -101,10 +124,8 @@ const PsychologyBookingFlow = () => {
     age: '',
     concerns: '',
     idCard: null,
-    
-    // Frontend-only fields
-    selectedDate: null,
-    selectedTime: '4:30 PM',
+    selectedDate: '', // CHANGED: Initialize as string
+    selectedTime: '4:30 PM', // Default time
   });
 
   const steps = [
@@ -129,6 +150,44 @@ const PsychologyBookingFlow = () => {
     'Self-Esteem Issues'
   ];
 
+  // ADDED: Helper function to format date consistently (from CareerCounsellingBookingFlow)
+  const formatDateForComparison = (date: Date) => {
+    return date.getFullYear() + '-' + 
+           String(date.getMonth() + 1).padStart(2, '0') + '-' + 
+           String(date.getDate()).padStart(2, '0');
+  };
+
+  // ADDED: Helper function to check if a time slot is in the past for today (from CareerCounsellingBookingFlow)
+  const isTimeSlotPast = (timeSlot: string) => {
+    if (!selectedDate) return false;
+    
+    const today = new Date();
+    const isToday = formatDateForComparison(selectedDate) === formatDateForComparison(today);
+    
+    if (!isToday) return false; // If not today, no time slots are past
+    
+    // Convert time slot to 24-hour format for comparison
+    const [time, period] = timeSlot.split(' ');
+    const [hours, minutes] = time.split(':').map(Number);
+    
+    let hour24 = hours;
+    if (period === 'PM' && hours !== 12) {
+      hour24 = hours + 12;
+    } else if (period === 'AM' && hours === 12) {
+      hour24 = 0;
+    }
+    
+    // Create a date object for the time slot
+    const timeSlotDate = new Date();
+    timeSlotDate.setHours(hour24, minutes, 0, 0);
+    
+    // Add 30 minutes buffer to current time
+    const currentTimeWithBuffer = new Date();
+    currentTimeWithBuffer.setMinutes(currentTimeWithBuffer.getMinutes() + 30);
+    
+    return timeSlotDate <= currentTimeWithBuffer;
+  };
+
   const nextStep = () => {
     // Validate current step before proceeding
     if (currentStep === 1) {
@@ -146,10 +205,37 @@ const PsychologyBookingFlow = () => {
         toast.error("Please select your primary concern");
         return;
       }
+    } else if (currentStep === 4) {
+      // UPDATED: Better validation
+      if (!selectedDate) {
+        toast.error("Please select a date for your session");
+        return;
+      }
+      if (!formData.selectedTime) {
+        toast.error("Please select a time for your session");
+        return;
+      }
+      
+      // ADDED: Validate date is not in the past
+      const selectedDateStart = new Date(selectedDate);
+      selectedDateStart.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (selectedDateStart < today) {
+        toast.error("Please select a future date");
+        return;
+      }
+      
+      // ADDED: Check if selected time is not in the past for today
+      if (isTimeSlotPast(formData.selectedTime)) {
+        toast.error("Please select a future time slot");
+        return;
+      }
     }
 
     if (currentStep === 4) {
-      handleSubmit();
+      handlePayment();
     } else if (currentStep < 5) {
       setCurrentStep(currentStep + 1);
     }
@@ -159,17 +245,27 @@ const PsychologyBookingFlow = () => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  // Handle calendar date selection and sync with dropdown
+  // UPDATED: Handle calendar date selection (from CareerCounsellingBookingFlow logic)
   const handleDateSelect = (date: Date) => {
+    console.log('Calendar selected:', date.toDateString());
     setSelectedDate(date);
-    updateFormData('selectedDate', date);
+    updateFormData('selectedDate', formatDateForComparison(date));
+    
+    // Update calendar month to show the selected date
+    setCurrentMonth(new Date(date.getFullYear(), date.getMonth()));
   };
 
-  // Handle dropdown date selection and sync with calendar
+  // UPDATED: Handle dropdown date selection (from CareerCounsellingBookingFlow logic)
   const handleDropdownDateSelect = (value: string) => {
-    const date = new Date(value);
+    console.log('Dropdown selected value:', value);
+    
+    // Parse the date properly to avoid timezone issues
+    const [year, month, day] = value.split('-').map(Number);
+    const date = new Date(year, month - 1, day); // month is 0-indexed in Date constructor
+    
+    console.log('Dropdown selected date:', date.toDateString());
     setSelectedDate(date);
-    updateFormData('selectedDate', date);
+    updateFormData('selectedDate', value); // Store as string for backend
     
     // Update calendar month to show the selected date
     setCurrentMonth(new Date(date.getFullYear(), date.getMonth()));
@@ -196,7 +292,7 @@ const PsychologyBookingFlow = () => {
     }
   };
 
-  // Generate available dates for dropdown (next 30 days only)
+  // UPDATED: Generate available dates using consistent formatting (from CareerCounsellingBookingFlow)
   const generateAvailableDates = () => {
     const dates = [];
     const today = new Date();
@@ -210,7 +306,7 @@ const PsychologyBookingFlow = () => {
       // Only include dates within one month
       if (date <= oneMonthFromToday) {
         dates.push({
-          value: date.toISOString().split('T')[0],
+          value: formatDateForComparison(date), // Use consistent formatting
           label: date.toLocaleDateString('en-US', { 
             weekday: 'long', 
             year: 'numeric', 
@@ -225,31 +321,82 @@ const PsychologyBookingFlow = () => {
   };
 
   const calculatePrice = () => {
-    return formData.idCard ? 1000 : 2000; // 75% discount for students
+    return formData.idCard ? 1000 : 2000; // 50% discount for students
   };
 
-  const handleSubmit = () => {
-    // Prepare data for backend (exclude frontend-only fields)
-    const backendData: PsychologyBookingForm = {
-      firstName: formData.firstName,
-      lastName: formData.lastName || undefined,
-      email: formData.email,
-      mobile: formData.mobile,
-      city: formData.city,
-      state: formData.state,
-      age: formData.age,
-      concerns: formData.concerns,
-      idCard: formData.idCard || undefined,
-    };
+  // UPDATED: Razorpay payment handler with proper date handling
+  const handlePayment = useCallback(async () => {
+    try {
+      const rzrpyInit = await initializeRazorpay();
+      if(!rzrpyInit) return toast.error('Failed to Initialize payment gateway. Please try again.');
+      
+      // UPDATED: Better validation
+      if (!selectedDate) {
+        toast.error("Please select a date for your session");
+        return;
+      }
+      
+      if (!formData.selectedTime) {
+        toast.error("Please select a time for your session");
+        return;
+      }
 
-    bookSession(backendData, {
-      onSuccess: (data) => {
-        toast.success(data.message);
-        setCurrentStep(5); // <-- Move here!
-      },
-      onError: (err) => mutationErrorHandler(err),
-    });
-  };
+      // UPDATED: Use the string date directly from formData
+      const backendData: PsychologyBookingForm = {
+        firstName: formData.firstName,
+        lastName: formData.lastName || undefined,
+        email: formData.email,
+        mobile: formData.mobile,
+        city: formData.city,
+        state: formData.state,
+        age: formData.age,
+        concerns: formData.concerns,
+        selectedDate: formData.selectedDate, // Already formatted as YYYY-MM-DD
+        selectedTime: formData.selectedTime,
+        idCard: formData.idCard || undefined,
+      };
+
+      console.log('Submitting form data:', backendData);
+
+      const data = await mutateAsync(backendData);
+      if(!data || !data.data) {
+        toast.error('Something Went Wrong In creating Payment. Please try again.');
+        return;
+      }
+      const order = data.data;
+      const options: RazorpayOrderOptions = {
+        key : RZPY_KEYID,
+        amount: Number(order.amount) * 100, // in paise
+        currency: "INR",
+        name: "STEM for Society",
+        description: "Psychology Counselling Session",
+        order_id: order.orderId,
+        image : "https://stem-for-society.netlify.app/logo-01.png",
+        prefill : {
+          name: formData.firstName + " " + (formData.lastName ? ` ${formData.lastName}` : ''),
+          email: formData.email,
+          contact: formData.mobile,
+        },
+        async handler(){
+          toast.success('Payment Successful!, We Verify your payment and confirm your slot within 48 hrs.');
+          setCurrentStep(5);
+        }
+      };
+      // @ts-expect-error
+      const rzp : RazorpayInstance = new Razorpay(options);
+      rzp.on("payment.failed", (res)=>{
+        console.log("Failure: ", res);
+        toast.error('Payment Failed. Please try again.\n'+ res.error.description);
+      
+      });
+
+      rzp.open();
+
+    } catch (error) {
+      console.error('Payment error:', error);
+      toast.error('Failed to initiate payment. Please try again.');
+    }
+  }, [formData, selectedDate, mutateAsync]); // Added selectedDate to dependencies
 
   const renderStepIndicator = () => (
     <div className="flex items-center justify-center mb-8">
@@ -366,7 +513,6 @@ const PsychologyBookingFlow = () => {
             </p>
           </div>
           
-          {/* Fixed file input - removed Button wrapper */}
           <input
             type="file"
             accept="image/*"
@@ -434,143 +580,232 @@ const PsychologyBookingFlow = () => {
     </div>
   );
 
+  // UPDATED: Calendar logic following CareerCounsellingBookingFlow pattern
   const renderScheduleSession = () => {
     const today = new Date();
     const oneMonthFromToday = new Date(today);
     oneMonthFromToday.setMonth(today.getMonth() + 1);
 
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Calendar */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
-              className="p-2"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <h3 className="font-medium">
-              {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-            </h3>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
-              className="p-2"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-7 gap-1 mb-4 text-center text-sm text-gray-500">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-              <div key={day} className="p-2">{day}</div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-7 gap-1">
-            {Array.from({ length: 35 }, (_, i) => {
-              const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), i - 6);
-              const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
-              const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
-              const isToday = date.toDateString() === new Date().toDateString();
-              const isPastDate = date < new Date(new Date().setHours(0, 0, 0, 0));
-              const isAfterOneMonth = date > oneMonthFromToday;
-              const isDisabled = !isCurrentMonth || isPastDate || isAfterOneMonth;
-              
-              return (
-                <button
-                  key={i}
-                  onClick={() => {
-                    if (!isDisabled) {
-                      handleDateSelect(date);
-                    }
-                  }}
-                  className={`p-2 text-sm rounded-lg transition-colors ${
-                    isDisabled
-                      ? 'text-gray-300 cursor-not-allowed'
-                      : isSelected
-                        ? 'bg-teal-500 text-white'
-                        : isToday
-                          ? 'bg-teal-100 text-teal-600'
-                          : 'hover:bg-gray-100'
-                  }`}
-                  disabled={isDisabled}
-                >
-                  {date.getDate()}
-                </button>
-              );
-            })}
-          </div>
-          
-          <div className="mt-4 text-xs text-gray-500 text-center">
-            Available dates: Today to {oneMonthFromToday.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
-          </div>
-        </div>
-
-        {/* Right side */}
-        <div className="space-y-6">
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Calendar */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Date
-            </label>
-            <Select 
-              value={selectedDate ? selectedDate.toISOString().split('T')[0] : ''} 
-              onValueChange={handleDropdownDateSelect}
-            >
-              <SelectTrigger className="w-full h-12 bg-gray-100 border-0 text-gray-700">
-                <SelectValue placeholder="Select Date" />
-              </SelectTrigger>
-              <SelectContent>
-                {generateAvailableDates().map((date) => (
-                  <SelectItem key={date.value} value={date.value}>
-                    {date.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            <div className="flex items-center justify-between mb-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
+                className="p-2"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <h3 className="font-medium">
+                {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              </h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
+                className="p-2"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
 
-          <div>
-            <h4 className="font-medium text-gray-900 mb-4">Available Time</h4>
-            <div className="grid grid-cols-2 gap-3">
-              {availableTimes.map((time) => (
-                <button
-                  key={time}
-                  onClick={() => updateFormData('selectedTime', time)}
-                  className={`p-3 text-sm rounded-lg border transition-colors ${
-                    formData.selectedTime === time
-                      ? 'bg-teal-500 text-white border-teal-500'
-                      : 'bg-gray-100 text-gray-700 border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  {time}
-                </button>
+            <div className="grid grid-cols-7 gap-1 mb-4 text-center text-sm text-gray-500">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                <div key={day} className="p-2">{day}</div>
               ))}
+            </div>
+
+            {/* UPDATED: Calendar grid following CareerCounsellingBookingFlow logic */}
+            <div className="grid grid-cols-7 gap-1">
+              {(() => {
+                const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+                const startDate = new Date(firstDay);
+                startDate.setDate(startDate.getDate() - firstDay.getDay()); // Go to start of week
+                
+                const days = [];
+                const currentDate = new Date(startDate);
+                
+                // Generate 42 days (6 weeks) to fill the calendar grid
+                for (let i = 0; i < 42; i++) {
+                  const date = new Date(currentDate);
+                  const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
+                  
+                  // Better date comparison for selection
+                  const isSelected = selectedDate && 
+                    formatDateForComparison(date) === formatDateForComparison(selectedDate);
+                  
+                  const isToday = formatDateForComparison(date) === formatDateForComparison(new Date());
+                  const isPastDate = date < new Date(new Date().setHours(0, 0, 0, 0));
+                  const isAfterOneMonth = date > oneMonthFromToday;
+                  const isDisabled = !isCurrentMonth || isPastDate || isAfterOneMonth;
+                  
+                  days.push(
+                    <button
+                      key={i}
+                      onClick={() => {
+                        if (!isDisabled) {
+                          handleDateSelect(date);
+                        }
+                      }}
+                      className={`p-2 text-sm rounded-lg transition-colors ${
+                        isDisabled
+                          ? 'text-gray-300 cursor-not-allowed'
+                          : isSelected
+                            ? 'bg-teal-500 text-white'
+                            : isToday
+                              ? 'bg-teal-100 text-teal-600 font-semibold'
+                              : isCurrentMonth
+                                ? 'hover:bg-gray-100 text-gray-900'
+                                : 'text-gray-400'
+                      }`}
+                      disabled={isDisabled}
+                    >
+                      {date.getDate()}
+                    </button>
+                  );
+                  
+                  currentDate.setDate(currentDate.getDate() + 1);
+                }
+                
+                return days;
+              })()}
+            </div>
+            
+            <div className="mt-4 text-xs text-gray-500 text-center">
+              Available dates: Today to {oneMonthFromToday.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
             </div>
           </div>
 
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start space-x-3">
-            <Shield className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-            <span className="text-yellow-800 text-sm">
-              We will be contacting you within 48 hrs of your registration
-            </span>
-          </div>
+          {/* Right side */}
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Date *
+              </label>
+              {/* UPDATED: Select with proper value synchronization */}
+              <Select 
+                value={selectedDate ? formatDateForComparison(selectedDate) : ''} 
+                onValueChange={handleDropdownDateSelect}
+              >
+                <SelectTrigger className="w-full h-12 bg-gray-100 border-0 text-gray-700">
+                  <SelectValue placeholder="Select Date" />
+                </SelectTrigger>
+                <SelectContent>
+                  {generateAvailableDates().map((date) => (
+                    <SelectItem key={date.value} value={date.value}>
+                      {date.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              {/* Debug info (remove in production) */}
+              {selectedDate && (
+                <div className="mt-2 text-xs text-gray-500">
+                  Selected: {selectedDate.toDateString()} | Formatted: {formatDateForComparison(selectedDate)}
+                </div>
+              )}
+            </div>
 
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start space-x-3">
-            <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-            <span className="text-yellow-800 text-sm">
-              Note: Selected date and time are for reference only. Final scheduling will be confirmed via contact.
-            </span>
+            <div>
+              <h4 className="font-medium text-gray-900 mb-4">Available Time *</h4>
+              
+              {/* ADDED: Show info message for today's date */}
+              {selectedDate && formatDateForComparison(selectedDate) === formatDateForComparison(today) && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                  <p className="text-blue-800 text-sm flex items-center">
+                    <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
+                    For today's session, only future time slots are available (30 min advance booking required)
+                  </p>
+                </div>
+              )}
+              
+              {/* UPDATED: Time slots with past time logic */}
+              <div className="grid grid-cols-2 gap-3">
+                {availableTimes.map((time) => {
+                  const isPastTime = isTimeSlotPast(time);
+                  const isSelected = formData.selectedTime === time;
+                  
+                  return (
+                    <button
+                      key={time}
+                      onClick={() => {
+                        if (!isPastTime) {
+                          updateFormData('selectedTime', time);
+                        }
+                      }}
+                      disabled={isPastTime}
+                      className={`p-3 text-sm rounded-lg border transition-colors ${
+                        isPastTime
+                          ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-50'
+                          : isSelected
+                            ? 'bg-teal-500 text-white border-teal-500'
+                            : 'bg-gray-100 text-gray-700 border-gray-200 hover:border-gray-300 hover:bg-white'
+                      }`}
+                    >
+                      <span>{time}</span>
+                      {isPastTime && (
+                        <div className="text-xs text-gray-400 mt-1">Past</div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              
+              {/* ADDED: Show message if no available time slots for today */}
+              {selectedDate && 
+               formatDateForComparison(selectedDate) === formatDateForComparison(today) && 
+               availableTimes.every(time => isTimeSlotPast(time)) && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mt-4">
+                  <p className="text-orange-800 text-sm text-center">
+                    ⏰ No more time slots available for today. Please select tomorrow or a future date.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* UPDATED: Display selected date and time for confirmation */}
+            {selectedDate && formData.selectedTime && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-medium text-blue-900 mb-2">Selected Schedule:</h4>
+                <p className="text-blue-800 text-sm">
+                  <strong>Date:</strong> {selectedDate.toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </p>
+                <p className="text-blue-800 text-sm">
+                  <strong>Time:</strong> {formData.selectedTime}
+                </p>
+              </div>
+            )}
+
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start space-x-3">
+              <Shield className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+              <span className="text-yellow-800 text-sm">
+                We will be contacting you within 48 hrs of your registration
+              </span>
+            </div>
+
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start space-x-3">
+              <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+              <span className="text-yellow-800 text-sm">
+                Note: Selected date and time are for reference only. Final scheduling will be confirmed via contact.
+              </span>
+            </div>
           </div>
         </div>
       </div>
     );
   };
 
+  // UPDATED: Success page with proper date display
   const renderSuccess = () => (
     <div className="text-center space-y-8">
       <div className="bg-green-50 border border-green-200 rounded-2xl p-12">
@@ -578,10 +813,31 @@ const PsychologyBookingFlow = () => {
           <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center">
             <Check className="h-8 w-8 text-white" />
           </div>
-          <h2 className="text-3xl font-bold text-gray-900">Registration Successful</h2>
+          <h2 className="text-3xl font-bold text-gray-900">Payment Successful!</h2>
           <p className="text-gray-600 max-w-md">
-            Your psychology counselling request has been submitted. We will contact you within 48 hours to confirm your session.
+            Your psychology counselling session has been booked successfully. We will contact you within 48 hours to confirm your session details.
           </p>
+          
+          {/* UPDATED: Display booked schedule info */}
+          {selectedDate && formData.selectedTime && (
+            <div className="bg-white border border-green-200 rounded-lg p-4 text-left">
+              <h4 className="font-medium text-green-900 mb-2">Booked Schedule:</h4>
+              <p className="text-green-800 text-sm">
+                <strong>Date:</strong> {selectedDate.toLocaleDateString('en-US', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
+              </p>
+              <p className="text-green-800 text-sm">
+                <strong>Time:</strong> {formData.selectedTime}
+              </p>
+              <p className="text-green-800 text-sm">
+                <strong>Amount Paid:</strong> ₹{calculatePrice().toLocaleString()}
+              </p>
+            </div>
+          )}
         </div>
       </div>
       
@@ -599,6 +855,9 @@ const PsychologyBookingFlow = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* ADDED: Razorpay script */}
+      <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+      
       <div className="relative overflow-hidden min-h-screen" style={{ height: '100%', minHeight: '100%' }}>
         {/* Grid background */}
         <div 
@@ -690,14 +949,14 @@ const PsychologyBookingFlow = () => {
               className="bg-[#0389FF] hover:bg-[#0389FF]/90 text-white px-8 py-3 text-lg font-semibold h-12"
               disabled={isPending}
             >
-              {currentStep === 4 ? (isPending ? 'SUBMITTING...' : 'SUBMIT REQUEST') : 'CONTINUE'}
+              {currentStep === 4 ? (isPending ? 'PROCESSING...' : 'PAY NOW') : 'CONTINUE'}
             </Button>
           </div>
         )}
       </div>
 
       {/* Footer */}
-            <footer className="bg-blue-900 text-white py-8 mt-16">
+      <footer className="bg-blue-900 text-white py-8 mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center">
             <div className="w-10 h-10 rounded-full flex items-center justify-center mr-3">
@@ -716,9 +975,9 @@ const PsychologyBookingFlow = () => {
           </div>
         </div>
       </footer>
-        <SharePopup isVisible={isShowing} />
+      <SharePopup isVisible={isShowing} />
     </div>
   );
 };
 
-export default PsychologyBookingFlow
+export default PsychologyBookingFlow;
