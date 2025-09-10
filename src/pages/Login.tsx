@@ -30,10 +30,12 @@ const Login = () => {
       const firebaseUser = await signInWithGoogle();
       
       const googleEmail = firebaseUser.email!;
-      // Create a very strong password that definitely meets all requirements
-      const googlePassword = `GoogleUser123456${firebaseUser.uid}ABC`;
+      // Create a CONSISTENT password based on Firebase UID (not random)
+      const googlePassword = `Google${firebaseUser.uid.substring(0, 6)}123@!`;
       const firstName = firebaseUser.displayName?.split(' ')[0] || 'User';
       const lastName = firebaseUser.displayName?.split(' ').slice(1).join(' ') || '';
+      
+      console.log('Generated password for', googleEmail, ':', googlePassword);
       
       // First try to register the user (if they don't exist)
       try {
@@ -47,21 +49,23 @@ const Login = () => {
             firstName: firstName,
             lastName: lastName,
             password: googlePassword,
-            mobile: '', // Optional for Google users
+            confirmPassword: googlePassword,
+            mobile: '9999999999', // Default mobile for OAuth users
           }),
         });
         
-        if (!registerResponse.ok) {
-          console.log('Registration failed, user might exist');
+        if (registerResponse.ok) {
+          console.log('User registered successfully');
         }
       } catch (registerError) {
-        console.log('Registration error, proceeding to login');
+        // User might already exist, continue to login
+        console.log('Registration failed (user might exist):', registerError);
       }
       
       // Small delay to ensure registration completes
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Now login with the Google credentials
+      // Now login with the SAME Google credentials
       signIn({
         email: googleEmail,
         password: googlePassword
