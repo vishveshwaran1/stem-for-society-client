@@ -49,6 +49,9 @@ const Login = () => {
       console.log('Generated password for', googleEmail, ':', googlePassword);
       console.log('Generated mobile for', googleEmail, ':', uniqueMobile);
       
+      let registrationSuccessful = false;
+      let userAlreadyExists = false;
+      
       // First try to register the user (if they don't exist)
       try {
         const registerResponse = await fetch(`${API_URL}/auth/register`, {
@@ -68,23 +71,41 @@ const Login = () => {
         
         if (registerResponse.ok) {
           console.log('User registered successfully');
+          registrationSuccessful = true;
         } else {
           const errorData = await registerResponse.json();
           console.log('Registration failed:', errorData);
+          
+          // Check if user already exists
+          if (errorData.error && (
+            errorData.error.includes('Email already registered') ||
+            errorData.error.includes('already exists')
+          )) {
+            console.log('User already exists, proceeding to login');
+            userAlreadyExists = true;
+          } else {
+            // If registration failed for other reasons, show error and return
+            toast.error(`Registration failed: ${errorData.error || 'Unknown error'}`);
+            return;
+          }
         }
       } catch (registerError) {
-        // User might already exist, continue to login
-        console.log('Registration failed (user might exist):', registerError);
+        console.error('Registration request failed:', registerError);
+        toast.error('Failed to register user. Please try again.');
+        return;
       }
       
-      // Small delay to ensure registration completes
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Now login with the SAME Google credentials
-      signIn({
-        email: googleEmail,
-        password: googlePassword
-      });
+      // Only proceed to login if registration was successful OR user already exists
+      if (registrationSuccessful || userAlreadyExists) {
+        // Small delay to ensure registration completes
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Now login with the SAME Google credentials
+        signIn({
+          email: googleEmail,
+          password: googlePassword
+        });
+      }
       
     } catch (error: any) {
       console.error('Google sign-in error:', error);
