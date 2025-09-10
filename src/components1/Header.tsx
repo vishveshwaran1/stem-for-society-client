@@ -10,14 +10,14 @@ import {
 } from "@/components1/ui/menubar";
 import { ChevronDown, CircleUserIcon, Menu , X } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { useUser } from "@/lib/hooks";
+import { useUser } from "../lib/hooks";
 import { parseAsBoolean, useQueryState } from "nuqs";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const { user, signOut } = useUser();
-   const [filterByMe, setFilterByMe] = useQueryState<boolean>(
+  const [filterByMe, setFilterByMe] = useQueryState<boolean>(
     "me",
     parseAsBoolean,
   );
