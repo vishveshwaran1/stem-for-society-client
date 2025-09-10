@@ -139,7 +139,7 @@ function Header() {
                 <Avatar alt="User Avatar" radius="xl">
                   <CircleUserIcon size={25} />
                 </Avatar>
-                {user.user.firstName}
+                {user.user?.firstName || user.user?.email?.split('@')[0] || 'User'}
               </div>
             </Menu.Target>
             <Menu.Dropdown>
@@ -189,7 +189,7 @@ function Header() {
                 <Avatar alt="User Avatar" radius="xl">
                   <CircleUserIcon size={25} />
                 </Avatar>
-                {user.user.firstName}
+                {user.user?.firstName || user.user?.email?.split('@')[0] || 'User'}
               </>
             ) : (
               <Link

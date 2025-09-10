@@ -2,13 +2,15 @@ import { Button } from "@/components1/ui/button";
 import { Input } from "@/components1/ui/input";
 import { Label } from "@/components1/ui/label";
 import { Link } from "react-router-dom";
-import { account } from "../../appwrite";
+import { signInWithGoogle } from "../../lib/firebaseAuth";
+import { toast } from "react-toastify";
 
 interface LoginFormProps {
   email: string;
   password: string;
   onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSubmit: () => void;
+  onGoogleSignIn?: () => void;
   isLoading: boolean;
 }
 
@@ -17,6 +19,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
   password,
   onInputChange,
   onSubmit,
+  onGoogleSignIn,
   isLoading,
 }) => {
   const handleSubmit = (e: React.FormEvent) => {
@@ -25,14 +28,17 @@ const LoginForm: React.FC<LoginFormProps> = ({
   };
 
   const handleLoginWithGoogle = async () => {
-    try {
-      await account.createOAuth2Session(
-        'google' as any,
-        "http://localhost:5173/dashboard", // Success redirect URL
-        "http://localhost:5173/login"      // Failure redirect URL
-      );
-    } catch (error) {
-      console.error("Google OAuth login failed:", error);
+    if (onGoogleSignIn) {
+      onGoogleSignIn();
+    } else {
+      // Fallback to direct Firebase auth if no prop provided
+      try {
+        const user = await signInWithGoogle();
+        toast.success(`Welcome ${user.displayName || user.email}!`);
+      } catch (error: any) {
+        console.error("Google OAuth login failed:", error);
+        toast.error(error.message || "Failed to sign in with Google");
+      }
     }
   };
 

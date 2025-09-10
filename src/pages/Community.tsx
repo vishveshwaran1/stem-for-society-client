@@ -51,11 +51,11 @@ const Community = () => {
           <div className="flex flex-col md:flex-row items-center justify-between gap-8">
             {/* QR Code */}
             
-              <div className="w-48 h-64 bg-white rounded-xl p-1 mb-4 shadow-sm overflow-hidden">
+              <div className="w-48 h-64 bg-white rounded-xl p-1 mb-4 shadow-sm overflow-hidden flex items-center justify-center">
   <img 
-    src="/lovable-uploads/QR.jpg"
+    src="/lovable-uploads/QR.png"
     alt="QR Code" 
-    className="w-full h-full object-cover rounded-lg"
+    className="max-w-full max-h-full object-contain rounded-lg"
   />
 </div>
 
@@ -73,7 +73,7 @@ const Community = () => {
                 Events, trainings, workshop
               </p>
               <a 
-                href="https://api.whatsapp.com/send/?phone=918296155821&text&type=phone_number&app_absent=0" 
+                href="https://chat.whatsapp.com/Epro4DSJ4qG4qf1D9vsEep?mode=ems_share_c" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="text-blue-500 hover:text-blue-600 font-medium text-lg inline-flex items-center gap-2"

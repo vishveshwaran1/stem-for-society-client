@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useUser } from "../lib/hooks";
-import { queryClient } from "../lib/api";
+import { signInWithGoogle } from "../lib/firebaseAuth";
+import { API_URL } from "../Constants";
 import LoginStages from "@/components1/ui/LoginStages";
 import LoginForm from "@/components1/ui/LoginForm";
 
@@ -20,9 +21,57 @@ const Login = () => {
   const { signIn, isSigningIn, user } = useUser({
     extraOnSuccess: () => {
       toast.success("Login was successful!");
-      queryClient.invalidateQueries({ queryKey: ["trainings"] });
     },
   });
+
+  // Google sign-in function - create super strong password
+  const handleGoogleSignIn = async () => {
+    try {
+      const firebaseUser = await signInWithGoogle();
+      
+      const googleEmail = firebaseUser.email!;
+      // Create a very strong password that definitely meets all requirements
+      const googlePassword = `GoogleUser123456${firebaseUser.uid}ABC`;
+      const firstName = firebaseUser.displayName?.split(' ')[0] || 'User';
+      const lastName = firebaseUser.displayName?.split(' ').slice(1).join(' ') || '';
+      
+      // First try to register the user (if they don't exist)
+      try {
+        const registerResponse = await fetch(`${API_URL}/auth/register`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: googleEmail,
+            firstName: firstName,
+            lastName: lastName,
+            password: googlePassword,
+            mobile: '', // Optional for Google users
+          }),
+        });
+        
+        if (!registerResponse.ok) {
+          console.log('Registration failed, user might exist');
+        }
+      } catch (registerError) {
+        console.log('Registration error, proceeding to login');
+      }
+      
+      // Small delay to ensure registration completes
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Now login with the Google credentials
+      signIn({
+        email: googleEmail,
+        password: googlePassword
+      });
+      
+    } catch (error: any) {
+      console.error('Google sign-in error:', error);
+      toast.error(error.message || "Failed to sign in with Google");
+    }
+  };
 
   if (user) return <Navigate to={"/"} />;
 
@@ -136,6 +185,7 @@ const Login = () => {
                     password={formData.password}
                     onInputChange={handleInputChange}
                     onSubmit={handleSubmit}
+                    onGoogleSignIn={handleGoogleSignIn}
                     isLoading={isSigningIn}
                   />
                 </div>
@@ -163,6 +213,7 @@ const Login = () => {
                 password={formData.password}
                 onInputChange={handleInputChange}
                 onSubmit={handleSubmit}
+                onGoogleSignIn={handleGoogleSignIn}
                 isLoading={isSigningIn}
               />
             </div>
