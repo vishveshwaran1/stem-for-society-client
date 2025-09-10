@@ -5,37 +5,37 @@ import { Star } from "lucide-react";
 const TestimonialsSection = () => {
   const testimonials = [
     {
-      name: "Tanay Wilson",
+      name: "Tharun Kumar",
       title: "Cellular Biology and Genetics Engineering with Biotechnological Applications",
       rating: 5,
       text: "I am grateful for the Experience Innovation challenges we conduct. Programs are world through and provide practical insights into healthcare technology and devices through lab activities focused on real problem-solving and development."
     },
     {
-      name: "John Smith", 
+      name: "Dharshini ", 
       title: "Effective Winning Strategy & Performance-Driven Engineering",
       rating: 5,
       text: "Very informative as it brings me close to point strategies to develop my skills in Engineering. The program exceeded my expectations."
     },
     {
-      name: "Sarah Johnson",
+      name: "Vishveshwaran ",
       title: "Biomedical Engineering and Healthcare Innovation",
       rating: 5,
       text: "The hands-on approach and mentorship provided transformed my understanding of biomedical applications. Highly recommend this program."
     },
     {
-      name: "Michael Chen",
+      name: "Sivani",
       title: "Data Science and Machine Learning Applications",
       rating: 5,
       text: "Outstanding curriculum that bridges theory and practice. The industry connections and placement support were exceptional."
     },
     {
-      name: "Emily Rodriguez",
+      name: "Raghul",
       title: "Renewable Energy Systems and Sustainability",
       rating: 5,
       text: "The program opened my eyes to sustainable technology solutions. The mentorship and hands-on projects were incredibly valuable for my career growth."
     },
     {
-      name: "David Kumar",
+      name: "Sachithra",
       title: "Artificial Intelligence and Robotics Innovation",
       rating: 5,
       text: "Amazing experience with cutting-edge AI and robotics projects. The industrial training component provided real-world exposure that was invaluable."
