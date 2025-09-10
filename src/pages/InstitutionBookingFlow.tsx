@@ -4,7 +4,7 @@ import { Button } from '@/components1/ui/button';
 import { Input } from '@/components1/ui/input';
 import { Card } from '@/components1/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components1/ui/select';
-import { ArrowLeft, Share2, Check, AlertTriangle, ChevronLeft, ChevronRight, Send, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Share2, Check, AlertTriangle, ChevronLeft, ChevronRight, Send, AlertCircle, Mail } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useMutation } from '@tanstack/react-query';
@@ -16,22 +16,21 @@ import { mutationErrorHandler, initializeRazorpay } from '../lib/utils';
 import { RZPY_KEYID } from '../Constants';
 import { useShare } from '@/hooks/useShare';
 import { SharePopup } from '@/components1/ui/SharePopup';
-import { firebaseApp } from '../firebase.config';
-import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from "firebase/auth";
-import { on } from 'events';
-
-// FIXED: Declare global types for Firebase
-declare global {
-  interface Window {
-    recaptchaVerifier?: RecaptchaVerifier;
-    confirmationResult?: ConfirmationResult;
-  }
-}
 
 // Backend types from Pricing.tsx
 type CreatePaymentResponse = {
   orderId: string;
   amount: number;
+};
+
+// ADDED: OTP response types
+type SendOTPResponse = {
+  message: string;
+  data: any;
+};
+
+type VerifyOTPResponse = {
+  message: string;
 };
 
 // Backend form data type (what gets sent to backend)
@@ -67,9 +66,7 @@ interface FormData {
   plan: "Basics" | "Premium";
   selectedDate: string;
   selectedTime: string;
-  // Frontend-only fields (not sent to backend)
-  institutionName: string;
-  manualInstitutionName: string;
+  // Frontend-only fields (not sent to backend) - REMOVED: institutionName, manualInstitutionName
   firstName: string;
   lastName: string;
   country: string;
@@ -96,25 +93,57 @@ function useInstitutionSignUp() {
   });
 }
 
+// ADDED: Custom hook for sending email OTP
+function useSendEmailOTP() {
+  return useMutation<
+    SendOTPResponse,
+    AxiosError<GenericError>,
+    { email: string },
+    unknown
+  >({
+    mutationFn: async (data) => {
+      const response = await api().post("/otp/send", data);
+      return response.data;
+    },
+    onError: (err) => mutationErrorHandler(err),
+  });
+}
+
+// ADDED: Custom hook for verifying email OTP
+function useVerifyEmailOTP() {
+  return useMutation<
+    VerifyOTPResponse,
+    AxiosError<GenericError>,
+    { email: string; otp: number },
+    unknown
+  >({
+    mutationFn: async (data) => {
+      const response = await api().post("/otp/verify", data);
+      return response.data;
+    },
+    onError: (err) => mutationErrorHandler(err),
+  });
+}
+
 const InstitutionBookingFlow = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const { mutateAsync, isPending } = useInstitutionSignUp();
+  const { mutateAsync: sendOTP, isPending: isSendingOTP } = useSendEmailOTP();
+  const { mutateAsync: verifyOTP, isPending: isVerifyingOTP } = useVerifyEmailOTP();
   const { isShowing, handleShare } = useShare();
 
-  // ADDED: SMS verification states
-  const [isOtpLoading, setIsOtpLoading] = useState(false);
+  // UPDATED: Email OTP verification states
   const [otpTimer, setOtpTimer] = useState(0);
   const [canResendOtp, setCanResendOtp] = useState(true);
-  const [recaptchaInitialized, setRecaptchaInitialized] = useState(false);
 
   const [formData, setFormData] = useState<FormData>({
     // Backend fields
-    schoolName: '',
+    schoolName: '', // This will be directly typed now
     contactName: '',
-    contactMobile: '',
     contactEmail: '',
+    contactMobile: '',
     studentsCount: 0,
     addressLine1: '',
     addressLine2: '',
@@ -122,10 +151,9 @@ const InstitutionBookingFlow = () => {
     state: '',
     pincode: '',
     plan: 'Premium',
-    
-    // Frontend-only fields
-    institutionName: '',
-    manualInstitutionName: '',
+    selectedDate: '',
+    selectedTime: '',
+    // Frontend-only fields (REMOVED: institutionName, manualInstitutionName)
     firstName: '',
     lastName: '',
     country: 'in', // Default to India
@@ -134,28 +162,9 @@ const InstitutionBookingFlow = () => {
     otpSent: false,
     otpVerified: false,
     numberOfStudents: '',
-    selectedDate: '',
-    selectedTime: '',
   });
 
-  // FIXED: Initialize Firebase Auth and reCAPTCHA only when needed
-const initializeRecaptcha = useCallback(() => {
-  if (!window.recaptchaVerifier) {
-    const auth = getAuth(firebaseApp);
-    window.recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
-      size: "invisible",
-      callback: (response: any) => {
-        console.log("reCAPTCHA solved:", response);
-      },
-      "expired-callback": () => {
-        toast.error("reCAPTCHA expired. Please try again.");
-      }
-    });
-  }
-}, []);
-
-
-  // ADDED: OTP timer effect
+  // OTP timer effect
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (otpTimer > 0) {
@@ -168,8 +177,6 @@ const initializeRecaptcha = useCallback(() => {
     return () => clearInterval(interval);
   }, [otpTimer, formData.otpSent]);
 
-  // FIXED: Cleanup on unmount
-
   const steps = [
     { number: 1, title: 'Institution Information' },
     { number: 2, title: 'Point of Contact' },
@@ -179,16 +186,6 @@ const initializeRecaptcha = useCallback(() => {
 
   const timeSlots = [
     '10:30 AM', '11:30 AM', '12:30 PM', '3:30 PM', '4:30 PM', '5:30 PM'
-  ];
-
-  const institutionOptions = [
-    'MIT',
-    'Stanford University',
-    'Harvard University',
-    'IIT Delhi',
-    'IIT Bombay',
-    'IIT Madras',
-    'Other'
   ];
 
   const nextStep = () => {
@@ -204,7 +201,7 @@ const initializeRecaptcha = useCallback(() => {
         return;
       }
       if (!formData.otpVerified) {
-        toast.error("Please verify your mobile number with OTP");
+        toast.error("Please verify your email address with OTP");
         return;
       }
     } else if (currentStep === 3) {
@@ -284,60 +281,91 @@ const initializeRecaptcha = useCallback(() => {
     return timeSlotDate <= currentTimeWithBuffer;
   };
 
-  // FIXED: Handle OTP sending with Firebase - with proper error handling
-// Initialize Recaptcha once
-
-
-// Send OTP
-const handleSendOTP = async () => {
-  if (!formData.contactMobile) {
-    toast.error("Please enter mobile number");
-    return;
-  }
-
-  const auth = getAuth(firebaseApp);
-  const phoneNumber = getCountryCode() + formData.contactMobile;
-
-  try {
-    if (!window.recaptchaVerifier) {
-      initializeRecaptcha();
+  // UPDATED: Handle email OTP sending
+  const handleSendOTP = async () => {
+    if (!formData.contactEmail) {
+      toast.error("Please enter email address first");
+      return;
     }
 
-    const confirmationResult = await signInWithPhoneNumber(
-      auth,
-      phoneNumber,
-      window.recaptchaVerifier!
-    );
-    window.confirmationResult = confirmationResult;
-
-    toast.success(`OTP sent to ${formData.contactMobile}`);
-    updateFormData("otpSent", true);
-    setOtpTimer(60);
-    setCanResendOtp(false);
-  } catch (error: any) {
-    console.error("Error sending OTP:", error);
-    toast.error(error.message || "Failed to send OTP");
-  }
-};
-
-// Verify OTP
-const handleVerifyOTP = async () => {
-  if (!formData.otp) {
-    toast.error("Please enter OTP");
-    return;
-  }
-
-  try {
-    const result = await window.confirmationResult?.confirm(formData.otp);
-    if (result?.user) {
-      toast.success("Mobile number verified successfully!");
-      updateFormData("otpVerified", true);
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.contactEmail)) {
+      toast.error("Please enter a valid email address");
+      return;
     }
-  } catch (error: any) {
-    console.error("OTP verification failed:", error);
-    toast.error(error.message || "Invalid OTP");
-  }
-};
+
+    try {
+      const response = await sendOTP({
+        email: formData.contactEmail
+      });
+
+      if (response.message) {
+        toast.success(`OTP sent successfully to ${formData.contactEmail}`);
+        updateFormData('otpSent', true);
+        
+        // Start 60-second timer for resend
+        setOtpTimer(60);
+        setCanResendOtp(false);
+      } else {
+        toast.error('Failed to send OTP');
+      }
+    } catch (error: any) {
+      console.error('Email OTP sending failed:', error);
+      
+      if (error.response?.status === 429) {
+        toast.error('Too many requests. Please try again later.');
+      } else if (error.response?.status === 400) {
+        toast.error('Invalid email address');
+      } else {
+        toast.error('Failed to send OTP. Please try again.');
+      }
+    }
+  };
+
+  // UPDATED: Handle email OTP verification
+  const handleVerifyOTP = async () => {
+    if (!formData.otp) {
+      toast.error("Please enter OTP");
+      return;
+    }
+    
+    if (formData.otp.length !== 6) {
+      toast.error("Please enter a valid 6-digit OTP");
+      return;
+    }
+
+    try {
+      const response = await verifyOTP({
+        email: formData.contactEmail,
+        otp: parseInt(formData.otp)
+      });
+
+      if (response.message) {
+        toast.success("Email address verified successfully!");
+        updateFormData('otpVerified', true);
+      } else {
+        toast.error('Invalid OTP. Please try again.');
+      }
+    } catch (error: any) {
+      console.error('OTP verification failed:', error);
+      
+      if (error.response?.status === 400) {
+        const errorMessage = error.response?.data?.error;
+        if (errorMessage === 'OTP has expired') {
+          toast.error('OTP has expired. Please request a new one.');
+          updateFormData('otpSent', false);
+          updateFormData('otp', '');
+        } else if (errorMessage === 'Invalid OTP') {
+          toast.error('Invalid OTP. Please check and try again.');
+        } else {
+          toast.error('Invalid or expired OTP. Please try again.');
+        }
+      } else {
+        toast.error('OTP verification failed. Please try again.');
+      }
+    }
+  };
 
   // Handle OTP resending
   const handleResendOTP = async () => {
@@ -350,20 +378,6 @@ const handleVerifyOTP = async () => {
     updateFormData('otp', '');
     updateFormData('otpSent', false);
     updateFormData('otpVerified', false);
-    
-    // Clear previous confirmation result
-    delete window.confirmationResult;
-    
-    // Reset reCAPTCHA
-    if (window.recaptchaVerifier) {
-      try {
-        window.recaptchaVerifier.clear();
-        delete window.recaptchaVerifier;
-        setRecaptchaInitialized(false);
-      } catch (error) {
-        console.error('Error clearing reCAPTCHA:', error);
-      }
-    }
     
     // Resend OTP
     await handleSendOTP();
@@ -381,7 +395,7 @@ const handleVerifyOTP = async () => {
     return countryCodes[formData.country] || '+91';
   };
 
-  // Format phone number for display
+  // UPDATED: Format phone number for display
   const getFormattedPhoneNumber = () => {
     return `${getCountryCode()} ${formData.contactMobile}`;
   };
@@ -400,7 +414,7 @@ const handleVerifyOTP = async () => {
   const handleDateSelect = (date: Date) => {
     console.log('Calendar selected:', date.toDateString());
     setSelectedDate(date);
-    updateFormData('selectedDate', date);
+    updateFormData('selectedDate', formatDateForComparison(date));
     
     // Update calendar month to show the selected date
     setCurrentMonth(new Date(date.getFullYear(), date.getMonth()));
@@ -416,7 +430,7 @@ const handleVerifyOTP = async () => {
     
     console.log('Dropdown selected date:', date.toDateString());
     setSelectedDate(date);
-    updateFormData('selectedDate', date);
+    updateFormData('selectedDate', value);
     
     // Update calendar month to show the selected date
     setCurrentMonth(new Date(date.getFullYear(), date.getMonth()));
@@ -450,93 +464,98 @@ const handleVerifyOTP = async () => {
     return dates;
   };
 
+  const handlePayment = useCallback(async () => {
+    try {
+      const rzrpyInit = await initializeRazorpay();
+      if (!rzrpyInit) return toast.error("Unable to initialize payment!");
 
+      if (!selectedDate || !formData.selectedTime) {
+        toast.error("Please select date and time for your session");
+        return;
+      }
 
-    const handlePayment = useCallback(async () => {
-      try {
-        const rzrpyInit = await initializeRazorpay();
-        if (!rzrpyInit) return toast.error("Unable to initialize payment!");
-  
-        // Prepare data for backend (exclude frontend-only fields)
-        const backendData: InstitutionSignUpForm = {
-          schoolName: formData.schoolName,
-          contactName: formData.contactName,
-          contactMobile: formData.contactMobile,
-          contactEmail: formData.contactEmail,
-          studentsCount: parseInt(formData.numberOfStudents) || 0,
-          addressLine1: formData.addressLine1,
-          addressLine2: formData.addressLine2 || undefined,
-          city: formData.city,
-          state: formData.state,
-          pincode: formData.pincode,
-          plan: formData.plan,
-          selectedDate: selectedDate.toISOString().split('T')[0], // Send only date part
-          selectedTime: formData.selectedTime,
-        };
-  
-        const data = await mutateAsync(backendData);
-  
-        console.log("🚀 ~ handlePayment ~ data:", data);
-  
-        if (!data || !data.data) {
-          toast.error("Something went wrong in creating payment!");
+      // Prepare data for backend (exclude frontend-only fields)
+      const backendData: InstitutionSignUpForm = {
+        schoolName: formData.schoolName,
+        contactName: formData.contactName,
+        contactMobile: formData.contactMobile,
+        contactEmail: formData.contactEmail,
+        studentsCount: parseInt(formData.numberOfStudents) || 0,
+        addressLine1: formData.addressLine1,
+        addressLine2: formData.addressLine2 || undefined,
+        city: formData.city,
+        state: formData.state,
+        pincode: formData.pincode,
+        plan: formData.plan,
+        selectedDate: formData.selectedDate, // Already formatted as YYYY-MM-DD
+        selectedTime: formData.selectedTime,
+      };
+
+      console.log("Sending to backend:", backendData);
+
+      const data = await mutateAsync(backendData);
+
+      console.log("🚀 ~ handlePayment ~ data:", data);
+
+      if (!data || !data.data) {
+        toast.error("Something went wrong in creating payment!");
+        return;
+      }
+      const order = data.data;
+
+      const options: RazorpayOrderOptions = {
+        key: RZPY_KEYID,
+        amount: Number(order.amount) * 100,
+        currency: "INR",
+        name: "Stem for Society",
+        description: `${formData.plan} plan purchase`,
+        image: "https://stem-4-society.netlify.app/logo-01.png",
+        order_id: order.orderId,
+        prefill: {
+          name: formData.contactName + " - " + formData.schoolName,
+          email: formData.contactEmail,
+          contact: formData.contactMobile,
+        },
+        async handler() {
+          toast.success(
+            "Payment was made successfully! We will verify the payment and will be in touch with you shortly",
+            { autoClose: false, draggable: false },
+          );
+          setCurrentStep(5); // Move to success step
+        },
+      };
+
+      // @ts-expect-error Razorpay global variable
+      const rzp: RazorpayInstance = new window.Razorpay(options);
+
+      // Razorpay event handler
+      rzp.on("payment.failed", (res) => {
+        console.log("Failure:", res);
+        toast.error("Payment failed! Reason:\n" + res.error.description, {
+          autoClose: false,
+          closeOnClick: false,
+        });
+        toast.error(
+          "Please note Order ID: " +
+            res.error.metadata.order_id +
+            "\n Payment ID: " +
+            res.error.metadata.payment_id,
+          { autoClose: false, closeOnClick: false },
+        );
+      });
+
+      rzp.open();
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        if (error.status === 401) {
+          toast.error("Please login again");
           return;
         }
-        const order = data.data;
-  
-        const options: RazorpayOrderOptions = {
-          key: RZPY_KEYID,
-          amount: Number(order.amount) * 100,
-          currency: "INR",
-          name: "Stem for Society",
-          description: `${formData.plan} plan purchase`,
-          image: "https://stem-4-society.netlify.app/logo-01.png",
-          order_id: order.orderId,
-          prefill: {
-            name: formData.contactName + " - " + formData.schoolName,
-            email: formData.contactEmail,
-            contact: formData.contactMobile,
-          },
-          async handler() {
-            toast.success(
-              "Payment was made successfully! We will verify the payment and will be in touch with you shortly",
-              { autoClose: false, draggable: false },
-            );
-            renderSuccess(); // Move to success step
-          },
-        };
-  
-        // @ts-expect-error Razorpay global variable
-        const rzp: RazorpayInstance = new window.Razorpay(options);
-  
-        // Razorpay event handler
-        rzp.on("payment.failed", (res) => {
-          console.log("Failure:", res);
-          toast.error("Payment failed! Reason:\n" + res.error.description, {
-            autoClose: false,
-            closeOnClick: false,
-          });
-          toast.error(
-            "Please note Order ID: " +
-              res.error.metadata.order_id +
-              "\n Payment ID: " +
-              res.error.metadata.payment_id,
-            { autoClose: false, closeOnClick: false },
-          );
-        });
-  
-        rzp.open();
-      } catch (error) {
-        if (error instanceof AxiosError) {
-          if (error.status === 401) {
-            toast.error("Please login again");
-            return;
-          }
-        }
-        console.log("🚀 ~ handlePayment ~ error:", error);
-        toast.error("Something went wrong in the payment process");
       }
-    }, [formData, mutateAsync]);
+      console.log("🚀 ~ handlePayment ~ error:", error);
+      toast.error("Something went wrong in the payment process");
+    }
+  }, [formData, selectedDate, mutateAsync]);
 
   const renderStepIndicator = () => (
     <div className="flex items-center justify-center space-x-8 mb-12">
@@ -572,43 +591,20 @@ const handleVerifyOTP = async () => {
 
   const renderStep1 = () => (
     <div className="space-y-6">
+      {/* UPDATED: Direct manual input instead of dropdown */}
       <div>
-        <Select 
-          value={formData.institutionName}
-          onValueChange={(value) => {
-            updateFormData('institutionName', value);
-            updateFormData('schoolName', value === 'Other' ? formData.manualInstitutionName : value);
-          }}
-        >
-          <SelectTrigger className="w-full h-12 bg-gray-100 border-0 text-gray-500">
-            <SelectValue placeholder="Select Institution name *" />
-          </SelectTrigger>
-          <SelectContent>
-            {institutionOptions.map((option) => (
-              <SelectItem key={option} value={option}>{option}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Input
+          placeholder="Institution/School Name *"
+          value={formData.schoolName}
+          onChange={(e) => updateFormData('schoolName', e.target.value)}
+          className="h-12 bg-gray-100 border-0 placeholder:text-gray-500"
+        />
       </div>
 
-      {formData.institutionName === 'Other' && (
-        <div>
-          <Input
-            placeholder="Enter the Institution name *"
-            value={formData.manualInstitutionName}
-            onChange={(e) => {
-              updateFormData('manualInstitutionName', e.target.value);
-              updateFormData('schoolName', e.target.value);
-            }}
-            className="h-12 bg-gray-100 border-0 placeholder:text-gray-500"
-          />
-        </div>
-      )}
-
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start space-x-3">
-        <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-        <span className="text-yellow-800 text-sm">
-          Select your institution from list or enter manually if not listed.
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start space-x-3">
+        <AlertTriangle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+        <span className="text-blue-800 text-sm">
+          Enter your institution or school name exactly as it appears in official webpage.
         </span>
       </div>
 
@@ -653,11 +649,9 @@ const handleVerifyOTP = async () => {
     </div>
   );
 
+  // UPDATED: Step 2 now uses email OTP instead of mobile OTP
   const renderStep2 = () => (
     <div className="space-y-6">
-      {/* FIXED: reCAPTCHA container with better positioning */}
-      <div id="recaptcha-container" className="fixed top-0 left-0 z-50"></div>
-      
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
           placeholder="Contact Person Name *"
@@ -666,21 +660,27 @@ const handleVerifyOTP = async () => {
           className="h-12 bg-gray-100 border-0 placeholder:text-gray-500"
           disabled={formData.otpVerified}
         />
-        <Input
-          placeholder="Contact Email *"
-          type="email"
-          value={formData.contactEmail}
-          onChange={(e) => updateFormData('contactEmail', e.target.value)}
-          className="h-12 bg-gray-100 border-0 placeholder:text-gray-500"
-          disabled={formData.otpVerified}
-        />
+        <div className="relative">
+          <Input
+            placeholder="Contact Email *"
+            type="email"
+            value={formData.contactEmail}
+            onChange={(e) => updateFormData('contactEmail', e.target.value)}
+            className="h-12 bg-gray-100 border-0 placeholder:text-gray-500"
+            disabled={formData.otpVerified}
+          />
+          {formData.otpVerified && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <Check className="h-5 w-5 text-green-500" />
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Select 
           value={formData.country}
           onValueChange={(value) => updateFormData('country', value)}
-          disabled={formData.otpVerified}
         >
           <SelectTrigger className="h-12 bg-gray-100 border-0 text-gray-500">
             <SelectValue placeholder="Country" />
@@ -694,7 +694,7 @@ const handleVerifyOTP = async () => {
           </SelectContent>
         </Select>
         
-        <div className="md:col-span-2 relative">
+        <div className="md:col-span-2">
           <Input
             placeholder="Mobile Number *"
             value={formData.contactMobile}
@@ -704,14 +704,8 @@ const handleVerifyOTP = async () => {
               updateFormData('contactMobile', value);
             }}
             className="h-12 bg-gray-100 border-0 placeholder:text-gray-500"
-            disabled={formData.otpVerified}
             maxLength={10}
           />
-          {formData.otpVerified && (
-            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-              <Check className="h-5 w-5 text-green-500" />
-            </div>
-          )}
         </div>
       </div>
 
@@ -719,11 +713,11 @@ const handleVerifyOTP = async () => {
         <div className="flex items-center justify-end">
           <Button 
             onClick={handleSendOTP}
-            disabled={!formData.contactMobile || formData.contactMobile.length !== 10 || isOtpLoading}
+            disabled={!formData.contactEmail || isSendingOTP}
             className={`px-8 ${formData.otpSent ? 'bg-gray-500' : 'bg-blue-500 hover:bg-blue-600'} text-white`}
           >
-            <Send className="h-4 w-4 mr-2" />
-            {isOtpLoading ? 'Sending...' : formData.otpSent ? 'OTP Sent' : 'Send OTP'}
+            <Mail className="h-4 w-4 mr-2" />
+            {isSendingOTP ? 'Sending...' : formData.otpSent ? 'OTP Sent' : 'Send Email OTP'}
           </Button>
         </div>
       )}
@@ -731,10 +725,10 @@ const handleVerifyOTP = async () => {
       {formData.otpSent && !formData.otpVerified && (
         <>
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start space-x-3">
-            <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            <Mail className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
             <div className="text-blue-800 text-sm">
-              <p className="font-medium">OTP sent to {getFormattedPhoneNumber()}</p>
-              <p className="mt-1">Enter the 6-digit code you received via SMS</p>
+              <p className="font-medium">OTP sent to {formData.contactEmail}</p>
+              <p className="mt-1">Enter the 6-digit code you received in your email (valid for 10 minutes)</p>
             </div>
           </div>
 
@@ -750,27 +744,27 @@ const handleVerifyOTP = async () => {
                 }}
                 className="h-12 bg-gray-100 border-0 placeholder:text-gray-500"
                 maxLength={6}
-                disabled={isOtpLoading}
+                disabled={isVerifyingOTP}
               />
               <Button 
                 onClick={handleVerifyOTP}
-                disabled={!formData.otp || formData.otp.length !== 6 || isOtpLoading}
+                disabled={!formData.otp || formData.otp.length !== 6 || isVerifyingOTP}
                 className="px-6 bg-green-500 hover:bg-green-600 text-white"
               >
-                {isOtpLoading ? 'Verifying...' : 'Verify'}
+                {isVerifyingOTP ? 'Verifying...' : 'Verify'}
               </Button>
             </div>
 
             {/* Resend OTP option */}
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-600">
-                Didn't receive the code?
+                Didn't receive the email?
               </span>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleResendOTP}
-                disabled={!canResendOtp}
+                disabled={!canResendOtp || isSendingOTP}
                 className="text-blue-600 hover:text-blue-700 px-2"
               >
                 {canResendOtp ? 'Resend OTP' : `Resend in ${otpTimer}s`}
@@ -786,21 +780,22 @@ const handleVerifyOTP = async () => {
             <Check className="h-5 w-5 text-white" />
           </div>
           <div className="text-green-800">
-            <p className="font-medium">Mobile number verified successfully!</p>
-            <p className="text-sm">Phone: {getFormattedPhoneNumber()}</p>
+            <p className="font-medium">Email address verified successfully!</p>
+            <p className="text-sm">Email: {formData.contactEmail}</p>
           </div>
         </div>
       )}
 
-      {/* Additional security info */}
+      {/* UPDATED: Additional security info for email verification */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
         <div className="flex items-start space-x-3">
           <AlertTriangle className="h-5 w-5 text-gray-500 mt-0.5 flex-shrink-0" />
           <div className="text-gray-700 text-sm">
-            <p className="font-medium mb-2">Why do we need to verify your phone number?</p>
+            <p className="font-medium mb-2">Why do we need to verify your email address?</p>
             <ul className="space-y-1 text-xs">
-              <li>• To send you important session updates and reminders</li>
+              <li>• To send you important session updates and meeting links</li>
               <li>• To ensure secure communication about your booking</li>
+              <li>• To send confirmation emails and reminders</li>
               <li>• To prevent fraudulent bookings and protect our platform</li>
             </ul>
           </div>
