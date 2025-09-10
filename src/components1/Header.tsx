@@ -259,11 +259,11 @@ const Header = () => {
               <div className="space-y-1">
                 <div className="px-4 py-2 text-sm font-medium text-gray-500">Services</div>
                 <Link 
-                  to="/psychology-counselling" 
+                  to="/mental-wellbeing" 
                   className="block px-6 py-2 text-gray-700 hover:bg-gray-50 rounded-xl transition-colors"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  Psychology Counselling
+                  Mental WellBeing
                 </Link>
                 <Link 
                   to="/career-counselling" 
