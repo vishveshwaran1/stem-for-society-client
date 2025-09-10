@@ -22,6 +22,7 @@ type UseUserArgs = {
 export function useUser({ extraOnSuccess = () => null }: UseUserArgs = {}) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  
   // Query for fetching the current user
   const {
     data: user,
@@ -30,11 +31,35 @@ export function useUser({ extraOnSuccess = () => null }: UseUserArgs = {}) {
   } = useQuery<UserAuthResponse | null>({
     queryKey: ["auth"],
     queryFn: async () => {
-      const authObject = queryClient.getQueryData<UserAuthResponse>(["auth"]); // Retrieve token from cache
-      if (authObject?.user.role !== "STUDENT") return null;
+      // First check React Query cache
+      let authObject = queryClient.getQueryData<UserAuthResponse>(["auth"]);
+      
+      // If not in cache, check localStorage
+      if (!authObject) {
+        const storedAuth = localStorage.getItem("studentAuth");
+        if (storedAuth) {
+          try {
+            authObject = JSON.parse(storedAuth);
+            // Validate the stored data before using it
+            if (authObject && authObject.user && authObject.token) {
+              // Restore to cache
+              queryClient.setQueryData(["auth"], authObject);
+            } else {
+              localStorage.removeItem("studentAuth");
+              authObject = null;
+            }
+          } catch (error) {
+            localStorage.removeItem("studentAuth");
+            authObject = null;
+          }
+        }
+      }
+      
+      if (authObject && authObject.user?.role !== "STUDENT") return null;
       return authObject ?? null;
     },
-    staleTime: 1000 * 60 * 6, // Prevent unnecessary refetching,
+    staleTime: 1000 * 60 * 60, // Increased to 1 hour for better session persistence
+    gcTime: 1000 * 60 * 60 * 24, // Keep in cache for 24 hours
   });
 
   // Mutation for signing in
@@ -53,15 +78,22 @@ export function useUser({ extraOnSuccess = () => null }: UseUserArgs = {}) {
         API_URL + "/auth/sign-in",
         data,
       );
-      return response.data; // API response structure
+      return response.data;
     },
     onSuccess: ({ data }) => {
-      queryClient.setQueryData(["auth"], data); // Cache the token globally;
+      queryClient.setQueryData(["auth"], data);
+      // Persist to localStorage with timestamp for expiry management
+      const authData = {
+        ...data,
+        timestamp: Date.now()
+      };
+      localStorage.setItem("studentAuth", JSON.stringify(authData));
       extraOnSuccess();
     },
     onError: (error) => {
       mutationErrorHandler(error);
       queryClient.setQueryData(["auth"], null);
+      localStorage.removeItem("studentAuth");
     },
   });
 
@@ -73,6 +105,7 @@ export function useUser({ extraOnSuccess = () => null }: UseUserArgs = {}) {
     signIn: signInUser,
     signOut: () => {
       queryClient.setQueryData(["auth"], null);
+      localStorage.removeItem("studentAuth");
       navigate("/login");
     },
   };
@@ -81,7 +114,7 @@ export function useUser({ extraOnSuccess = () => null }: UseUserArgs = {}) {
 export function usePartner({ extraOnSuccess = () => null }: UseUserArgs = {}) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  // Query for fetching the current user
+  
   const {
     data: user,
     isLoading,
@@ -90,13 +123,37 @@ export function usePartner({ extraOnSuccess = () => null }: UseUserArgs = {}) {
   } = useQuery<UserAuthResponse<"PARTNER"> | null, AxiosError<GenericError>>({
     queryKey: ["partnerAuth"],
     queryFn: async () => {
-      const authObject = queryClient.getQueryData<UserAuthResponse<"PARTNER">>([
+      // First check React Query cache
+      let authObject = queryClient.getQueryData<UserAuthResponse<"PARTNER">>([
         "partnerAuth",
-      ]); // Retrieve token from cache
-      if (authObject?.user.role !== "PARTNER") return null;
+      ]);
+      
+      // If not in cache, check localStorage
+      if (!authObject) {
+        const storedAuth = localStorage.getItem("partnerAuth");
+        if (storedAuth) {
+          try {
+            authObject = JSON.parse(storedAuth);
+            // Validate the stored data before using it
+            if (authObject && authObject.user && authObject.token) {
+              // Restore to cache
+              queryClient.setQueryData(["partnerAuth"], authObject);
+            } else {
+              localStorage.removeItem("partnerAuth");
+              authObject = null;
+            }
+          } catch (error) {
+            localStorage.removeItem("partnerAuth");
+            authObject = null;
+          }
+        }
+      }
+      
+      if (authObject && authObject.user?.role !== "PARTNER") return null;
       return authObject ?? null;
     },
-    staleTime: 1000 * 60 * 6,
+    staleTime: 1000 * 60 * 60, // Increased to 1 hour for better session persistence
+    gcTime: 1000 * 60 * 60 * 24, // Keep in cache for 24 hours
   });
 
   // Mutation for signing in
@@ -113,16 +170,23 @@ export function usePartner({ extraOnSuccess = () => null }: UseUserArgs = {}) {
       const response = await api().post<
         GenericResponse<UserAuthResponse<"PARTNER">>
       >(API_URL + "/partner/auth/sign-in", data);
-      return response.data; // API response structure
+      return response.data;
     },
     onSuccess: ({ data }) => {
       console.log("🚀 ~ useUserPartner ~ data:", data);
-      queryClient.setQueryData(["partnerAuth"], data); // Cache the token globally;
+      queryClient.setQueryData(["partnerAuth"], data);
+      // Persist to localStorage with timestamp for expiry management
+      const authData = {
+        ...data,
+        timestamp: Date.now()
+      };
+      localStorage.setItem("partnerAuth", JSON.stringify(authData));
       extraOnSuccess();
     },
     onError: (errors) => {
       mutationErrorHandler(errors);
       queryClient.setQueryData(["partnerAuth"], null);
+      localStorage.removeItem("partnerAuth");
     },
   });
 
@@ -136,8 +200,8 @@ export function usePartner({ extraOnSuccess = () => null }: UseUserArgs = {}) {
     signOut: () => {
       navigate("/partner/signin");
       queryClient.setQueryData(["partnerAuth"], null);
+      localStorage.removeItem("partnerAuth");
       queryClient.invalidateQueries({ queryKey: ["partner"] });
-      // queryClient.setQueriesData({ queryKey: ["partner"] }, null);
     },
   };
 }
@@ -145,7 +209,7 @@ export function usePartner({ extraOnSuccess = () => null }: UseUserArgs = {}) {
 export function useAdmin({ extraOnSuccess = () => null }: UseUserArgs = {}) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  // Query for fetching the current user
+  
   const {
     data: user,
     isLoading,
@@ -153,13 +217,37 @@ export function useAdmin({ extraOnSuccess = () => null }: UseUserArgs = {}) {
   } = useQuery<UserAuthResponse<"ADMIN"> | null>({
     queryKey: ["adminAuth"],
     queryFn: async () => {
-      const authObject = queryClient.getQueryData<UserAuthResponse<"ADMIN">>([
+      // First check React Query cache
+      let authObject = queryClient.getQueryData<UserAuthResponse<"ADMIN">>([
         "adminAuth",
-      ]); // Retrieve token from cache
-      if (authObject?.user.role !== "ADMIN") return null;
+      ]);
+      
+      // If not in cache, check localStorage
+      if (!authObject) {
+        const storedAuth = localStorage.getItem("adminAuth");
+        if (storedAuth) {
+          try {
+            authObject = JSON.parse(storedAuth);
+            // Validate the stored data before using it
+            if (authObject && authObject.user && authObject.token) {
+              // Restore to cache
+              queryClient.setQueryData(["adminAuth"], authObject);
+            } else {
+              localStorage.removeItem("adminAuth");
+              authObject = null;
+            }
+          } catch (error) {
+            localStorage.removeItem("adminAuth");
+            authObject = null;
+          }
+        }
+      }
+      
+      if (authObject && authObject.user?.role !== "ADMIN") return null;
       return authObject ?? null;
     },
-    staleTime: 1000 * 60 * 6, // Prevent unnecessary refetching,
+    staleTime: 1000 * 60 * 60, // Increased to 1 hour for better session persistence
+    gcTime: 1000 * 60 * 60 * 24, // Keep in cache for 24 hours
   });
 
   // Mutation for signing in
@@ -175,16 +263,23 @@ export function useAdmin({ extraOnSuccess = () => null }: UseUserArgs = {}) {
     mutationFn: async (data) => {
       await sleep(500);
       const response = await api().post(API_URL + "/admin/auth/sign-in", data);
-      return response.data; // API response structure
+      return response.data;
     },
     onSuccess: ({ data }) => {
       console.log("🚀 ~ useAdmin ~ data:", data);
-      queryClient.setQueryData(["adminAuth"], data); // Cache the token globally;
+      queryClient.setQueryData(["adminAuth"], data);
+      // Persist to localStorage with timestamp for expiry management
+      const authData = {
+        ...data,
+        timestamp: Date.now()
+      };
+      localStorage.setItem("adminAuth", JSON.stringify(authData));
       extraOnSuccess();
     },
     onError: (error) => {
       mutationErrorHandler(error);
       queryClient.setQueryData(["adminAuth"], null);
+      localStorage.removeItem("adminAuth");
       queryClient.invalidateQueries({ queryKey: ["admin"] });
     },
   });
@@ -198,7 +293,7 @@ export function useAdmin({ extraOnSuccess = () => null }: UseUserArgs = {}) {
     signOut: () => {
       navigate("/admin/signin");
       queryClient.setQueryData(["adminAuth"], null);
-      // queryClient.setQueryData(["admin"], null);
+      localStorage.removeItem("adminAuth");
     },
   };
 }
