@@ -19,6 +19,8 @@ type AdminCareerCounselling = {
   mobile: string;
   createdAt: Date | null;
   updatedAt: Date | null;
+  selectedDate : string,
+  selectedTime : string,
   plan: "Basics" | "Premium" | null;
   service: string | null;
   transactions: {
@@ -118,6 +120,7 @@ export default function AdminCareerCounselling() {
               { render: "Service/Plan" },
               { render: "Payment" },
               { render: "Registered on" },
+              { render: "Session Date" }
             ]}
             classNames={{
               root: "bg-white rounded-lg shadow",
@@ -164,6 +167,9 @@ export default function AdminCareerCounselling() {
                 },
                 {
                   render: formatDate(r.createdAt),
+                },
+                {
+                  render: r.selectedDate + " " + r.selectedTime,
                 },
               ],
             }))}

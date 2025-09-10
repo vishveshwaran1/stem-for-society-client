@@ -1,4 +1,4 @@
-import { Button, Input } from "@mantine/core";
+import {Badge, Button, Input } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { Search } from "lucide-react";
@@ -20,7 +20,10 @@ type AdminPsychologyTrainings = {
   createdAt: Date | null;
   updatedAt: Date | null;
   city: string;
+  selectedDate : string,
+  selectedTime : string,
   state: string;
+  transactionId : string;
   idCardURL: string | null;
   transactions: {
     id: string;
@@ -28,6 +31,18 @@ type AdminPsychologyTrainings = {
     updatedAt: Date | null;
     transactionId: string;
     psychologyId: string;
+    transaction: {
+      id: string;
+      createdAt: Date | null;
+      updatedAt: Date | null;
+      txnNo: string | null;
+      paymentId: string | null;
+      orderId: string;
+      signature: string | null;
+      idempotencyId: string | null;
+      amount: string;
+      status: "pending" | "success" | "cancelled" | "failed" | null;
+    };
   }[];
 };
 
@@ -104,7 +119,9 @@ export default function AdminPsychology() {
               { render: "Name" },
               { render: "Email" },
               { render: "Mobile" },
-              { render: "Registered on" },
+              { render: "Registered On" },
+              { render: "Session Date" },
+              { render: "Payment" },
               { render: "ID Card" },
             ]}
             classNames={{
@@ -130,6 +147,19 @@ export default function AdminPsychology() {
                   render: formatDate(r.createdAt),
                 },
                 {
+                  render: r.selectedDate + " " + r.selectedTime,
+                },
+                {
+                  render: (
+                    <>
+                      ₹{r.transactions?.[0]?.transaction.amount}
+                      <Badge className="ml-2" size="sm">
+                        {r.transactions?.[0]?.transaction.status}
+                      </Badge>
+                    </>
+                  ),
+                },
+                {
                   render: r.idCardURL ? (
                     <Link to={r.idCardURL} target="_blank">
                       <Button radius={999}>View</Button>
@@ -148,3 +178,5 @@ export default function AdminPsychology() {
     </div>
   );
 }
+
+

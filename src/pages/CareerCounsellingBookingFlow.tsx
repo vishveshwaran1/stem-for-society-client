@@ -37,7 +37,7 @@ type CreatePaymentResponse = {
   amount: number;
 };
 
-// Backend form data type (what gets sent to backend)
+// Backend form data type (what gets sent to backend) - UPDATED
 type CareerCounsellingForm = {
   firstName: string;
   lastName?: string;
@@ -45,6 +45,9 @@ type CareerCounsellingForm = {
   mobile: string;
   service?: CareerCounsellingServiceType;
   plan?: "Basics" | "Premium";
+  selectedDate?: string; // YYYY-MM-DD format
+  selectedTime?: string; // e.g., "4:30 PM"
+  studentId?: string; // Added for discount calculation
 };
 
 // Frontend form data type (includes UI-only fields)
@@ -58,16 +61,14 @@ interface FormData {
   plan?: "Basics" | "Premium";
   careerStage: string;
   concerns: string;
-  
-  // Frontend-only fields (not sent to backend)
   age: string;
   studentId: string;
-  selectedDate: Date | null;
+  selectedDate: string; // Changed from string to Date for UI
   selectedTime: string;
   switchPlanOrService: "plans" | "services";
 }
 
-// Custom hook for career counselling booking
+// UPDATED: Custom hook for career counselling booking
 function useRegisterCareer() {
   return useMutation<
     GenericResponse<CreatePaymentResponse>,
@@ -76,7 +77,13 @@ function useRegisterCareer() {
     unknown
   >({
     mutationFn: async (data) => {
-      const response = await api().post("/enquiry/career", data);
+      console.log('Sending to backend:', data); // Debug log
+      
+      const response = await api().post("/enquiry/career", data, {
+        headers: {
+          "Content-Type": "application/json", // Changed from multipart since no file upload
+        },
+      });
       return response.data;
     },
     onError: (err) => mutationErrorHandler(err),
@@ -105,8 +112,8 @@ const CareerCounsellingBookingFlow = () => {
     // Frontend-only fields
     age: '',
     studentId: '',
-    selectedDate: null,
-    selectedTime: '4:30 PM',
+    selectedDate: '',
+    selectedTime: '',
     switchPlanOrService: 'services',
   });
 
@@ -357,16 +364,32 @@ const CareerCounsellingBookingFlow = () => {
       const rzrpyInit = await initializeRazorpay();
       if (!rzrpyInit) return toast.error("Unable to initialize payment!");
 
-      // Prepare data for backend (include studentId for discount calculation)
-      const backendData: CareerCounsellingForm & { studentId?: string } = {
+      // FIXED: Validate required fields before sending
+      if (!selectedDate) {
+        toast.error("Please select a date for your session");
+        return;
+      }
+      
+      if (!formData.selectedTime) {
+        toast.error("Please select a time for your session");
+        return;
+      }
+
+      // FIXED: Prepare data for backend with date and time included
+      const backendData: CareerCounsellingForm = {
         firstName: formData.firstName,
         lastName: formData.lastName || undefined,
         email: formData.email,
         mobile: formData.mobile,
         service: formData.switchPlanOrService === 'services' ? formData.service : undefined,
         plan: formData.switchPlanOrService === 'plans' ? formData.plan : undefined,
-        studentId: formData.studentId || undefined, // Send studentId for backend discount calculation
+        // ADDED: Send selected date and time (following PsychologyBookingFlow pattern)
+        selectedDate: selectedDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
+        selectedTime: formData.selectedTime, // Format as "4:30 PM"
+        studentId: formData.studentId || undefined, // For discount calculation
       };
+
+      console.log('Submitting backend data:', backendData);
 
       const data = await mutateAsync(backendData);
 
@@ -422,10 +445,11 @@ const CareerCounsellingBookingFlow = () => {
       });
 
       rzp.open();
-    } catch {
+    } catch (error) {
+      console.error("Payment error:", error);
       toast.error("Something went wrong in the payment process");
     }
-  }, [formData, mutateAsync]);
+  }, [formData, selectedDate, mutateAsync]); // ADDED selectedDate to dependencies
 
   const renderStepIndicator = () => (
     <div className="flex items-center justify-center mb-8">
@@ -935,6 +959,32 @@ const CareerCounsellingBookingFlow = () => {
           <p className="text-gray-600 max-w-md">
             Your career counselling session has been scheduled. A secure meeting link will be sent to your email.
           </p>
+          
+          {/* ADDED: Show booked session details */}
+          {selectedDate && formData.selectedTime && (
+            <div className="bg-white border border-green-200 rounded-lg p-4 text-left max-w-md">
+              <h4 className="font-medium text-green-900 mb-2">Session Details:</h4>
+              <p className="text-green-800 text-sm">
+                <strong>Date:</strong> {selectedDate.toLocaleDateString('en-US', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
+              </p>
+              <p className="text-green-800 text-sm">
+                <strong>Time:</strong> {formData.selectedTime}
+              </p>
+              <p className="text-green-800 text-sm">
+                <strong>Service:</strong> {formData.switchPlanOrService === 'services' 
+                  ? formData.service 
+                  : `${formData.plan} Plan`}
+              </p>
+              <p className="text-green-800 text-sm">
+                <strong>Amount Paid:</strong> ₹{calculatePrice().toLocaleString()}
+              </p>
+            </div>
+          )}
         </div>
       </div>
       
