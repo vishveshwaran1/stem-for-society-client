@@ -35,7 +35,19 @@ const Login = () => {
       const firstName = firebaseUser.displayName?.split(' ')[0] || 'User';
       const lastName = firebaseUser.displayName?.split(' ').slice(1).join(' ') || '';
       
+      // Generate unique mobile number from Firebase UID
+      const generateUniqueeMobile = (uid: string): string => {
+        // Take first 10 characters of UID and convert to numbers
+        const uidNumbers = uid.replace(/[^0-9]/g, '').substring(0, 9);
+        // Ensure it starts with valid Indian mobile prefix (6-9) and has 10 digits
+        const mobile = `7${uidNumbers.padEnd(9, '0').substring(0, 9)}`;
+        return mobile;
+      };
+      
+      const uniqueMobile = generateUniqueeMobile(firebaseUser.uid);
+      
       console.log('Generated password for', googleEmail, ':', googlePassword);
+      console.log('Generated mobile for', googleEmail, ':', uniqueMobile);
       
       // First try to register the user (if they don't exist)
       try {
@@ -50,12 +62,15 @@ const Login = () => {
             lastName: lastName,
             password: googlePassword,
             confirmPassword: googlePassword,
-            mobile: '9999999999', // Default mobile for OAuth users
+            mobile: uniqueMobile, // Use unique mobile number
           }),
         });
         
         if (registerResponse.ok) {
           console.log('User registered successfully');
+        } else {
+          const errorData = await registerResponse.json();
+          console.log('Registration failed:', errorData);
         }
       } catch (registerError) {
         // User might already exist, continue to login
