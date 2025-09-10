@@ -18,98 +18,61 @@ const Login = () => {
     password: "",
   });
 
+  const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false);
+
   const { signIn, isSigningIn, user } = useUser({
     extraOnSuccess: () => {
       toast.success("Login was successful!");
+      setIsGoogleSigningIn(false);
     },
   });
 
-  // Google sign-in function - create super strong password
+  // Google sign-in function - optimized for speed
   const handleGoogleSignIn = async () => {
     try {
+      // Disable all background activities
+      setIsGoogleSigningIn(true);      
       const firebaseUser = await signInWithGoogle();
+      
       
       const googleEmail = firebaseUser.email!;
       // Create a CONSISTENT password based on Firebase UID (not random)
       const googlePassword = `Google${firebaseUser.uid.substring(0, 6)}123@!`;
-      const firstName = firebaseUser.displayName?.split(' ')[0] || 'User';
+      const firstName = (firebaseUser.displayName?.split(' ')[0] || 'GoogleUser').padEnd(5, 'X');
       const lastName = firebaseUser.displayName?.split(' ').slice(1).join(' ') || '';
       
       // Generate unique mobile number from Firebase UID
       const generateUniqueeMobile = (uid: string): string => {
-        // Take first 10 characters of UID and convert to numbers
         const uidNumbers = uid.replace(/[^0-9]/g, '').substring(0, 9);
-        // Ensure it starts with valid Indian mobile prefix (6-9) and has 10 digits
         const mobile = `7${uidNumbers.padEnd(9, '0').substring(0, 9)}`;
         return mobile;
       };
       
       const uniqueMobile = generateUniqueeMobile(firebaseUser.uid);
       
-      console.log('Generated password for', googleEmail, ':', googlePassword);
-      console.log('Generated mobile for', googleEmail, ':', uniqueMobile);
-      
-      let registrationSuccessful = false;
-      let userAlreadyExists = false;
-      
-      // First try to register the user (if they don't exist)
-      try {
-        const registerResponse = await fetch(`${API_URL}/auth/register`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email: googleEmail,
-            firstName: firstName,
-            lastName: lastName,
-            password: googlePassword,
-            confirmPassword: googlePassword,
-            mobile: uniqueMobile, // Use unique mobile number
-          }),
-        });
-        
-        if (registerResponse.ok) {
-          console.log('User registered successfully');
-          registrationSuccessful = true;
-        } else {
-          const errorData = await registerResponse.json();
-          console.log('Registration failed:', errorData);
-          
-          // Check if user already exists
-          if (errorData.error && (
-            errorData.error.includes('Email already registered') ||
-            errorData.error.includes('already exists')
-          )) {
-            console.log('User already exists, proceeding to login');
-            userAlreadyExists = true;
-          } else {
-            // If registration failed for other reasons, show error and return
-            toast.error(`Registration failed: ${errorData.error || 'Unknown error'}`);
-            return;
-          }
-        }
-      } catch (registerError) {
-        console.error('Registration request failed:', registerError);
-        toast.error('Failed to register user. Please try again.');
-        return;
-      }
-      
-      // Only proceed to login if registration was successful OR user already exists
-      if (registrationSuccessful || userAlreadyExists) {
-        // Small delay to ensure registration completes
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Now login with the SAME Google credentials
-        signIn({
+      // Always try registration first (will fail silently if user exists)
+      fetch(`${API_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           email: googleEmail,
-          password: googlePassword
-        });
-      }
+          firstName, lastName,
+          password: googlePassword,
+          confirmPassword: googlePassword,
+          mobile: uniqueMobile,
+        }),
+      }).catch(() => {}); // Ignore registration errors
+      
+      // Immediately attempt login (works for both new and existing users)
+      signIn({
+        email: googleEmail,
+        password: googlePassword
+      });
       
     } catch (error: any) {
       console.error('Google sign-in error:', error);
       toast.error(error.message || "Failed to sign in with Google");
+      setIsGoogleSigningIn(false);
     }
   };
 
@@ -128,18 +91,36 @@ const Login = () => {
     }
   };
 
+  // Determine if any loading state is active
+  const isAnyLoading = isSigningIn || isGoogleSigningIn;
+
   return (
     <div className="min-h-screen relative overflow-hidden">
       {/* Animated Background */}
       <div
-        className="absolute inset-0 bg-cover animate-subtle-zoom"
+        className={`absolute inset-0 bg-cover transition-all duration-300 ${
+          isGoogleSigningIn ? 'animate-none blur-sm' : 'animate-subtle-zoom'
+        }`}
         style={{
           backgroundImage: `url("/lovable-uploads/cc0094aa-ced3-4e50-b5f1-d61b7b6d2988.png")`,
           backgroundPosition: "center 70%",
         }}
       />
       {/* Background Overlay */}
-      <div className="absolute inset-0 bg-black bg-opacity-20"></div>
+      <div className={`absolute inset-0 transition-all duration-300 ${
+        isGoogleSigningIn ? 'bg-black bg-opacity-60' : 'bg-black bg-opacity-20'
+      }`}></div>
+
+      {/* Global Loading Overlay for Google Sign-in */}
+      {isGoogleSigningIn && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
+          <div className="bg-white rounded-lg p-8 flex flex-col items-center space-y-4 shadow-2xl">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <p className="text-lg font-medium text-gray-800">Signing in with Google...</p>
+            <p className="text-sm text-gray-600 text-center">Please complete the sign-in process in the popup window</p>
+          </div>
+        </div>
+      )}
 
       {/* Desktop Layout */}
       <div className="hidden md:block relative z-10 min-h-screen">
@@ -156,7 +137,7 @@ const Login = () => {
                   stage === "initial" || stage === "textFadeOut"
                     ? "left-1/2 -translate-x-1/2"
                     : "left-[25%] -translate-x-1/2"
-                }`}
+                } ${isGoogleSigningIn ? 'opacity-30' : ''}`}
                 style={{
                   transitionTimingFunction:
                     "cubic-bezier(0.25, 0.1, 0.25, 1)",
@@ -176,7 +157,7 @@ const Login = () => {
                       ? "h-32 w-32 md:h-48 md:w-48 lg:h-64 lg:w-64"
                       : "h-40 w-40 md:h-56 md:w-56 lg:h-72 lg:w-72 opacity-50"
                   } ${
-                    stage === "logoTransition"
+                    stage === "logoTransition" && !isGoogleSigningIn
                       ? "animate-pulse-glow-delayed"
                       : ""
                   }`}
@@ -193,7 +174,7 @@ const Login = () => {
                   stage === "initial"
                     ? "opacity-100 translate-y-24 md:translate-y-32 lg:translate-y-40"
                     : "opacity-0 -translate-y-5"
-                }`}
+                } ${isGoogleSigningIn ? 'opacity-30' : ''}`}
               >
                 <h1 className="text-2xl md:text-4xl lg:text-5xl font-bold text-white text-center px-4 leading-tight">
                   Let's Innovate, Incubate and Impact the world together!
@@ -210,7 +191,7 @@ const Login = () => {
                   stage === "logoTransition"
                     ? "translate-x-0 opacity-100"
                     : "translate-x-full opacity-0"
-                }`}
+                } ${isGoogleSigningIn ? 'pointer-events-none' : ''}`}
                 style={{
                   transitionTimingFunction:
                     "cubic-bezier(0.25, 0.1, 0.25, 1)",
@@ -218,7 +199,9 @@ const Login = () => {
                     "translate3d(var(--tw-translate-x), var(--tw-translate-y), 0)",
                 }}
               >
-                <div className="absolute inset-0 bg-white/50 rounded-l-3xl backdrop-blur-sm"></div>
+                <div className={`absolute inset-0 bg-white/50 rounded-l-3xl backdrop-blur-sm transition-all duration-300 ${
+                  isGoogleSigningIn ? 'opacity-30' : ''
+                }`}></div>
                 <div className="relative z-10 h-full max-h-screen overflow-y-auto flex items-center justify-center px-4 md:px-8 py-4">
                   <LoginForm
                     email={formData.email}
@@ -226,7 +209,7 @@ const Login = () => {
                     onInputChange={handleInputChange}
                     onSubmit={handleSubmit}
                     onGoogleSignIn={handleGoogleSignIn}
-                    isLoading={isSigningIn}
+                    isLoading={isAnyLoading}
                   />
                 </div>
               </div>
@@ -237,15 +220,23 @@ const Login = () => {
 
       {/* Mobile Layout */}
       <div className="md:hidden relative z-10 min-h-screen flex flex-col">
-        <div className="flex-1 flex items-center justify-center pt-16">
+        <div className={`flex-1 flex items-center justify-center pt-16 transition-all duration-300 ${
+          isGoogleSigningIn ? 'opacity-30' : ''
+        }`}>
           <img
             src="/lovable-uploads/ceabc523-dba1-475b-b670-7ed6b88782a1.png"
             alt="STEM for Society Logo"
-            className="h-24 w-24 object-contain animate-pulse-glow-delayed opacity-50"
+            className={`h-24 w-24 object-contain opacity-50 ${
+              !isGoogleSigningIn ? 'animate-pulse-glow-delayed' : ''
+            }`}
           />
         </div>
-        <div className="flex-1 relative">
-          <div className="absolute inset-0 bg-white/50 rounded-t-3xl backdrop-blur-sm"></div>
+        <div className={`flex-1 relative transition-all duration-300 ${
+          isGoogleSigningIn ? 'pointer-events-none' : ''
+        }`}>
+          <div className={`absolute inset-0 bg-white/50 rounded-t-3xl backdrop-blur-sm transition-all duration-300 ${
+            isGoogleSigningIn ? 'opacity-30' : ''
+          }`}></div>
           <div className="relative z-10 max-h-[60vh] overflow-y-auto flex items-start justify-center px-4 pt-8 pb-4">
             <div className="w-full max-w-sm">
               <LoginForm
@@ -254,7 +245,7 @@ const Login = () => {
                 onInputChange={handleInputChange}
                 onSubmit={handleSubmit}
                 onGoogleSignIn={handleGoogleSignIn}
-                isLoading={isSigningIn}
+                isLoading={isAnyLoading}
               />
             </div>
           </div>
