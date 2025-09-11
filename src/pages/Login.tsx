@@ -27,13 +27,12 @@ const Login = () => {
     },
   });
 
-  // Google sign-in function - optimized for speed
+  // Google sign-in function - with proper cancellation handling
   const handleGoogleSignIn = async () => {
     try {
       // Disable all background activities
       setIsGoogleSigningIn(true);      
       const firebaseUser = await signInWithGoogle();
-      
       
       const googleEmail = firebaseUser.email!;
       // Create a CONSISTENT password based on Firebase UID (not random)
@@ -71,7 +70,23 @@ const Login = () => {
       
     } catch (error: any) {
       console.error('Google sign-in error:', error);
-      toast.error(error.message || "Failed to sign in with Google");
+      
+      // Check if user cancelled the sign-in process
+      if (error.code === 'auth/popup-closed-by-user' || 
+          error.code === 'auth/cancelled-popup-request' ||
+          error.code === 'auth/popup-blocked' ||
+          error.message?.includes('popup') ||
+          error.message?.includes('cancelled') ||
+          error.message?.includes('closed') ||
+          error.message?.includes('aborted')) {
+        // User cancelled - don't show error toast, just reset loading state
+        console.log('User cancelled Google sign-in');
+      } else {
+        // Show error for actual failures
+        toast.error(error.message || "Failed to sign in with Google");
+      }
+      
+      // Always reset loading state when there's any error
       setIsGoogleSigningIn(false);
     }
   };
@@ -118,6 +133,13 @@ const Login = () => {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             <p className="text-lg font-medium text-gray-800">Signing in with Google...</p>
             <p className="text-sm text-gray-600 text-center">Please complete the sign-in process in the popup window</p>
+            {/* Optional: Add cancel button for better UX */}
+            <button 
+              onClick={() => setIsGoogleSigningIn(false)}
+              className="mt-4 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 underline transition-colors"
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}
