@@ -24,7 +24,7 @@ import ReactPlayer from "react-player";
 
 type PartnerTrainings = PartnerTraining & {
   enrolments: {
-    id: number;
+    id: string; // Change from number to string
     paidOn: Date | null;
     certificate: string | null;
     user: {
@@ -55,12 +55,31 @@ function useGenerateCertificates({ id }: { id?: string }) {
     (string | number)[]
   >({
     mutationFn: async (data) => {
+      console.log("🚀 Certificate generation request:", {
+        trainingId: id,
+        selectedStudents: data,
+        dataTypes: data.map((item) => typeof item),
+      });
+
+      // Convert all numbers to strings to match backend UUID validation
+      const stringifiedData = data.map((item) => String(item));
+
+      console.log("🚀 Sending to backend:", stringifiedData);
+
       return (
-        await api("partnerAuth").post(`/partner/trainings/${id}/generate`, data)
+        await api("partnerAuth").post(
+          `/partner/trainings/${id}/generate`,
+          stringifiedData,
+        )
       ).data;
     },
-    onError: (err) => mutationErrorHandler(err, navigate, "/partner/signin"),
+    onError: (err) => {
+      console.error("🚀 Certificate generation error:", err);
+      console.error("🚀 Error response:", err.response?.data);
+      mutationErrorHandler(err, navigate, "/partner/signin");
+    },
     onSuccess: (res) => {
+      console.log("🚀 Certificate generation success:", res);
       queryClientHook.invalidateQueries({
         queryKey: ["partner", "trainings", id],
       });
